@@ -666,5 +666,165 @@ window.BIM_FIGURES = {
   <rect class="f-box" x="428" y="166" width="196" height="70" rx="10"/>
   <text class="f-txt f-center" x="526" y="194">Монтаж ≠ демонтаж</text>
   <text class="f-dim f-center" x="526" y="216">это разные ведомости</text>
+</svg>`,
+
+  "competency-map": `
+<svg viewBox="0 0 640 340" role="img" aria-label="Сферы знаний BIM-специалиста">
+  <circle class="f-ring" cx="320" cy="170" r="122"/>
+  <circle class="f-fill" cx="320" cy="170" r="60"/>
+  <text class="f-txt f-center" x="320" y="165">BIM-</text>
+  <text class="f-txt f-center" x="320" y="184">менеджер</text>
+  <rect class="f-box" x="222" y="10" width="196" height="38" rx="10"/>
+  <text class="f-txt f-center" x="320" y="34">Аналитика и внедрение</text>
+  <rect class="f-box" x="452" y="86" width="176" height="38" rx="10"/>
+  <text class="f-txt f-center" x="540" y="110">Техника и ПО</text>
+  <rect class="f-box" x="452" y="216" width="176" height="38" rx="10"/>
+  <text class="f-txt f-center" x="540" y="240">Координация</text>
+  <rect class="f-box" x="222" y="292" width="196" height="38" rx="10"/>
+  <text class="f-txt f-center" x="320" y="316">Документы и стандарты</text>
+  <rect class="f-box" x="12" y="216" width="176" height="38" rx="10"/>
+  <text class="f-txt f-center" x="100" y="240">Автоматизация</text>
+  <rect class="f-box" x="12" y="86" width="176" height="38" rx="10"/>
+  <text class="f-txt f-center" x="100" y="110">Коммуникация</text>
+  <path class="f-arrow" d="M320 48v62M452 116l-76 30M452 224l-76-24M320 292v-62M188 224l76-24M188 116l76 30"/>
+</svg>`,
+
+  "maturity-levels": `
+<svg viewBox="0 0 640 300" role="img" aria-label="Уровни зрелости BIM в компании">
+  <text class="f-title" x="16" y="24">Уровни зрелости BIM</text>
+  <path class="f-line" d="M40 250h584M40 250V44"/>
+  <rect class="f-box" x="56" y="212" width="96" height="38" rx="6"/>
+  <text class="f-txt f-center" x="104" y="236">0</text>
+  <rect class="f-box" x="160" y="180" width="96" height="70" rx="6"/>
+  <text class="f-txt f-center" x="208" y="220">1</text>
+  <rect class="f-box" x="264" y="140" width="96" height="110" rx="6"/>
+  <text class="f-txt f-center" x="312" y="200">2</text>
+  <rect class="f-box" x="368" y="100" width="96" height="150" rx="6"/>
+  <text class="f-txt f-center" x="416" y="180">3</text>
+  <rect class="f-fill" x="472" y="60" width="96" height="190" rx="6"/>
+  <path class="f-accent" d="M472 60h96v190h-96z"/>
+  <text class="f-txt f-center" x="520" y="160">4</text>
+  <text class="f-dim f-center" x="104" y="268">нет BIM</text>
+  <text class="f-dim f-center" x="208" y="268">2D и 3D</text>
+  <text class="f-dim f-center" x="312" y="268">коллизии</text>
+  <text class="f-dim f-center" x="416" y="268">анализ</text>
+  <text class="f-dim f-center" x="520" y="268">решения</text>
+  <text class="f-accent-txt" x="16" y="292">Прыгнуть с 0 на 3 нельзя: каждый уровень — это привычки людей, а не купленное ПО</text>
+</svg>`,
+
+  "license-types": `
+<svg viewBox="0 0 640 280" role="img" aria-label="Типы лицензий на программное обеспечение">
+  <text class="f-title" x="16" y="24">Три модели лицензии</text>
+  <rect class="f-fill" x="16" y="42" width="192" height="150" rx="12"/>
+  <path class="f-accent" d="M16 42h192v150H16z"/>
+  <text class="f-txt f-center" x="112" y="70">Постоянная</text>
+  <text class="f-dim f-center" x="112" y="94">платишь один раз,</text>
+  <text class="f-dim f-center" x="112" y="112">пользуешься всегда</text>
+  <text class="f-dim f-center" x="112" y="140">дорого на входе</text>
+  <text class="f-dim f-center" x="112" y="164">обновления — отдельно</text>
+  <rect class="f-box" x="224" y="42" width="192" height="150" rx="12"/>
+  <text class="f-txt f-center" x="320" y="70">Подписка</text>
+  <text class="f-dim f-center" x="320" y="94">платишь за период,</text>
+  <text class="f-dim f-center" x="320" y="112">обновления включены</text>
+  <text class="f-dim f-center" x="320" y="140">дешевле на входе</text>
+  <text class="f-dim f-center" x="320" y="164">не платишь — не работает</text>
+  <rect class="f-box" x="432" y="42" width="192" height="150" rx="12"/>
+  <text class="f-txt f-center" x="528" y="70">Аренда</text>
+  <text class="f-dim f-center" x="528" y="94">короткий срок</text>
+  <text class="f-dim f-center" x="528" y="112">под конкретный проект</text>
+  <text class="f-dim f-center" x="528" y="140">обновлений нет</text>
+  <text class="f-dim f-center" x="528" y="164">удобно на пик нагрузки</text>
+  <text class="f-accent-txt" x="16" y="226">Сравнивают не цену покупки, а стоимость владения за 3 года</text>
+  <text class="f-dim" x="16" y="252">Лицензия + обучение + поддержка + железо + время на внедрение</text>
+</svg>`,
+
+  "software-map": `
+<svg viewBox="0 0 640 330" role="img" aria-label="Карта программного обеспечения по задачам">
+  <text class="f-title" x="16" y="22">Задача → чем закрывают</text>
+  <text class="f-accent-txt" x="176" y="46">Зарубежное</text>
+  <text class="f-accent-txt" x="430" y="46">Российское</text>
+  <path class="f-line f-dash" d="M410 34v272"/>
+  <text class="f-txt" x="16" y="76">Здание</text>
+  <text class="f-dim" x="176" y="76">Revit, Archicad, Allplan</text>
+  <text class="f-dim" x="430" y="76">Renga, nanoCAD BIM</text>
+  <text class="f-txt" x="16" y="112">Металл</text>
+  <text class="f-dim" x="176" y="112">Tekla Structures</text>
+  <text class="f-dim" x="430" y="112">nanoCAD BIM Конструкции</text>
+  <text class="f-txt" x="16" y="148">Инженерия</text>
+  <text class="f-dim" x="176" y="148">MagiCAD, Revit MEP</text>
+  <text class="f-dim" x="430" y="148">Model Studio CS, Project Studio</text>
+  <text class="f-txt" x="16" y="184">Сведение</text>
+  <text class="f-dim" x="176" y="184">Navisworks, Solibri</text>
+  <text class="f-dim" x="430" y="184">CADLib, S-Info, Larix</text>
+  <text class="f-txt" x="16" y="220">СОД</text>
+  <text class="f-dim" x="176" y="220">Autodesk Docs, Aconex</text>
+  <text class="f-dim" x="430" y="220">Pilot-BIM, Vitro-CAD, TDMS</text>
+  <text class="f-txt" x="16" y="256">Инфраструктура</text>
+  <text class="f-dim" x="176" y="256">Civil 3D, OpenRoads</text>
+  <text class="f-dim" x="430" y="256">Credo, IndorCAD, Topomatic</text>
+  <text class="f-txt" x="16" y="292">Бесплатно</text>
+  <text class="f-dim" x="176" y="292">Bonsai (BlenderBIM), FreeCAD</text>
+  <text class="f-dim" x="430" y="292">nanoCAD Free, просмотрщики</text>
+</svg>`,
+
+  "cim-stages": `
+<svg viewBox="0 0 640 300" role="img" aria-label="Стадии цифровой информационной модели в России">
+  <text class="f-title" x="16" y="24">ЦИМ по стадиям в российской практике</text>
+  <rect class="f-box" x="16" y="44" width="188" height="86" rx="10"/>
+  <text class="f-txt f-center" x="110" y="70">ЦИМ ПД</text>
+  <text class="f-dim f-center" x="110" y="92">проектная</text>
+  <text class="f-dim f-center" x="110" y="110">документация</text>
+  <rect class="f-fill" x="226" y="44" width="188" height="86" rx="10"/>
+  <path class="f-accent" d="M226 44h188v86H226z"/>
+  <text class="f-txt f-center" x="320" y="70">ЦИМ РД</text>
+  <text class="f-dim f-center" x="320" y="92">«строительная модель»,</text>
+  <text class="f-dim f-center" x="320" y="110">уровень С1</text>
+  <rect class="f-box" x="436" y="44" width="188" height="86" rx="10"/>
+  <text class="f-txt f-center" x="530" y="70">ЦИМ ИД</text>
+  <text class="f-dim f-center" x="530" y="92">исполнительная,</text>
+  <text class="f-dim f-center" x="530" y="110">по захваткам</text>
+  <path class="f-arrow" d="M204 87h20M414 87h20"/>
+  <text class="f-dim" x="16" y="164">Зарубежная шкала для сравнения:</text>
+  <text class="f-dim" x="16" y="188">ЦИМ ПД ≈ LOD 300 · ЦИМ РД ≈ LOD 400 · ЦИМ ИД ≈ LOD 500</text>
+  <text class="f-accent-txt" x="16" y="224">Спорный узел: кто делает и за чей счёт ЦИМ РД</text>
+  <text class="f-dim" x="16" y="250">По проекту приказа она ложится на подрядчика СМР, а проверять её</text>
+  <text class="f-dim" x="16" y="270">некому: проектировщик на стройке остаётся только надзором.</text>
+  <text class="f-dim" x="16" y="294">Ориентиры: СП 333.1325800, ПНСТ 909, ПП РФ № 331 — сверяйтесь с редакцией.</text>
+</svg>`,
+
+  "openbim-tools": `
+<svg viewBox="0 0 640 300" role="img" aria-label="Стандарты openBIM и что каждый решает">
+  <text class="f-title" x="16" y="24">Стандарты openBIM: кто за что отвечает</text>
+  <rect class="f-fill" x="16" y="44" width="146" height="84" rx="10"/>
+  <path class="f-accent" d="M16 44h146v84H16z"/>
+  <text class="f-txt f-center" x="89" y="72">IFC</text>
+  <text class="f-dim f-center" x="89" y="96">сама модель:</text>
+  <text class="f-dim f-center" x="89" y="114">геометрия и данные</text>
+  <rect class="f-box" x="174" y="44" width="146" height="84" rx="10"/>
+  <text class="f-txt f-center" x="247" y="72">BCF</text>
+  <text class="f-dim f-center" x="247" y="96">замечания</text>
+  <text class="f-dim f-center" x="247" y="114">к модели</text>
+  <rect class="f-box" x="332" y="44" width="146" height="84" rx="10"/>
+  <text class="f-txt f-center" x="405" y="72">IDS</text>
+  <text class="f-dim f-center" x="405" y="96">проверяемые</text>
+  <text class="f-dim f-center" x="405" y="114">требования</text>
+  <rect class="f-box" x="490" y="44" width="134" height="84" rx="10"/>
+  <text class="f-txt f-center" x="557" y="72">COBie</text>
+  <text class="f-dim f-center" x="557" y="96">данные для</text>
+  <text class="f-dim f-center" x="557" y="114">эксплуатации</text>
+  <rect class="f-box" x="16" y="150" width="196" height="76" rx="10"/>
+  <text class="f-txt f-center" x="114" y="176">IDM</text>
+  <text class="f-dim f-center" x="114" y="200">кто, когда и какие</text>
+  <text class="f-dim f-center" x="114" y="216">данные передаёт</text>
+  <rect class="f-box" x="224" y="150" width="196" height="76" rx="10"/>
+  <text class="f-txt f-center" x="322" y="176">MVD</text>
+  <text class="f-dim f-center" x="322" y="200">какой срез IFC</text>
+  <text class="f-dim f-center" x="322" y="216">нужен получателю</text>
+  <rect class="f-box" x="432" y="150" width="192" height="76" rx="10"/>
+  <text class="f-txt f-center" x="528" y="176">bSDD (IFD)</text>
+  <text class="f-dim f-center" x="528" y="200">единая</text>
+  <text class="f-dim f-center" x="528" y="216">терминология</text>
+  <text class="f-accent-txt" x="16" y="258">EIR говорит «что нужно», IDS делает это машинно проверяемым,</text>
+  <text class="f-dim" x="16" y="282">BEP описывает «как мы это сделаем». Не путайте документ и формат.</text>
 </svg>`
 };

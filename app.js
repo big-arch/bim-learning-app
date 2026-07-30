@@ -82,6 +82,8 @@
     cad: '<path d="M4 17L17 4l3 3L7 20H4z"/><path d="M14 7l3 3"/>',
     terrain: '<path d="M3 19l6-9 4 5 2-3 6 7z"/><path d="M3 19h18"/>',
     qa: '<path d="M9.2 9a2.8 2.8 0 115.3 1.3c-.5.9-1.6 1.3-2.1 2.1-.3.4-.4.8-.4 1.4"/><circle cx="12" cy="17.6" r="1.2"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/>',
+    manage: '<circle cx="12" cy="5.5" r="2.5"/><circle cx="5.5" cy="17" r="2.5"/><circle cx="18.5" cy="17" r="2.5"/><path d="M12 8v3.5M12 11.5H5.5v3M12 11.5h6.5v3"/>',
+    soft: '<rect x="3" y="4.5" width="18" height="13" rx="2"/><path d="M8 21h8M12 17.5V21"/><path d="M9.5 9L7.5 11l2 2M14.5 9l2 2-2 2"/>',
     play: '<path d="M8 5l12 7-12 7z"/>',
     arrow: '<path d="M9 5l7 7-7 7"/>'
   };
