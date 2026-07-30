@@ -1,0 +1,29 @@
+# Разворачивание BIM Academy на своём сервере.
+#
+#   1. Направьте A-запись домена на IP сервера.
+#   2. Создайте рядом файл .env со строкой:  SITE_ADDRESS=bim.example.ru
+#   3. docker compose up -d
+#
+# Caddy сам получит сертификат Let's Encrypt и будет его продлевать.
+# Порты 80 и 443 должны быть свободны и открыты в файрволе.
+
+services:
+  web:
+    image: caddy:2-alpine
+    container_name: bim-academy
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?укажите SITE_ADDRESS в файле .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,38 @@
+# Caddy сам получает и продлевает сертификат Let's Encrypt.
+# Адрес задаётся переменной SITE_ADDRESS в файле .env рядом с docker-compose.yml.
+# Пример: SITE_ADDRESS=bim.example.ru
+# Для локальной проверки: SITE_ADDRESS=:8080 (тогда HTTPS не нужен).
+
+{$SITE_ADDRESS} {
+	root * /srv
+	encode zstd gzip
+	file_server
+
+	# Служебные файлы PWA всегда проверяются на сервере, иначе обновление
+	# приложения не доедет до установленного на телефон ярлыка.
+	@nocache path / /index.html /sw.js /version.json /manifest.webmanifest
+	header @nocache Cache-Control "no-cache, must-revalidate"
+
+	# Остальное можно подержать в кэше: файлы подключаются с ?v=N,
+	# поэтому при обновлении версии браузер всё равно возьмёт свежие.
+	@assets {
+		path *.js *.css *.svg
+		not path /sw.js
+	}
+	header @assets Cache-Control "public, max-age=3600"
+
+	@icons path *.png *.ico
+	header @icons Cache-Control "public, max-age=2592000"
+
+	# Некоторые серверы не знают этот тип, и тогда установка PWA ломается.
+	@manifest path *.webmanifest
+	header @manifest Content-Type "application/manifest+json"
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	try_files {path} /index.html
+}

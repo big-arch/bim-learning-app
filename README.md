@@ -90,6 +90,25 @@ python -m http.server 8000
 
 Затем открыть http://localhost:8000/index.html
 
+## Развёртывание на своём сервере
+
+Приложение статическое, поэтому работает на любом веб-сервере. В каталоге
+`deploy/` лежит готовый комплект:
+
+```bash
+echo "SITE_ADDRESS=bim.example.ru" > .env
+docker compose up -d
+```
+
+Caddy сам получит сертификат Let's Encrypt. Есть и вариант без Docker — конфиг
+для nginx с certbot, и скрипт выгрузки по rsync. Подробно: [deploy/README.md](deploy/README.md).
+
+Проверка данных перед выгрузкой:
+
+```bash
+node deploy/check-content.cjs
+```
+
 ## Структура файлов
 
 ```
