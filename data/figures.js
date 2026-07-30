@@ -464,5 +464,207 @@ window.BIM_FIGURES = {
   <g><rect class="f-box" x="490" y="60" width="140" height="70" rx="12"/><text class="f-txt f-center" x="560" y="88">Архив</text><text class="f-dim f-center" x="560" y="108">Archive</text><text class="f-dim f-center" x="560" y="124">история версий</text></g>
   <path class="f-arrow" d="M150 92h16M310 92h16M470 92h16"/>
   <text class="f-dim" x="10" y="170">Каждый переход = проверка и согласование, а не просто копирование файла</text>
+</svg>`,
+
+  "links-tree": `
+<svg viewBox="0 0 640 330" role="img" aria-label="Дерево связей против круговой зависимости">
+  <text class="f-title" x="16" y="24">Кольцо: так нельзя</text>
+  <rect class="f-box" x="24" y="46" width="112" height="44" rx="10"/>
+  <text class="f-txt f-center" x="80" y="73">АР</text>
+  <rect class="f-box" x="150" y="130" width="112" height="44" rx="10"/>
+  <text class="f-txt f-center" x="206" y="157">Фасад</text>
+  <rect class="f-box" x="24" y="214" width="112" height="44" rx="10"/>
+  <text class="f-txt f-center" x="80" y="241">Отделка</text>
+  <path class="f-line" d="M136 74l24 52M206 174l-24 44M60 214V90"/>
+  <path class="f-accent" d="M148 118l14 12-19 6"/>
+  <path class="f-accent" d="M188 202l-6-20 19 8"/>
+  <path class="f-accent" d="M52 104l8-20 8 20"/>
+  <text class="f-dim" x="24" y="290">Каждый грузит каждого: открытие долгое,</text>
+  <text class="f-dim" x="24" y="308">версии расходятся, координаты «плывут»</text>
+
+  <path class="f-line f-dash" d="M320 30v280"/>
+
+  <text class="f-title" x="352" y="24">Дерево: так нужно</text>
+  <rect class="f-box" x="450" y="46" width="140" height="48" rx="10"/>
+  <text class="f-txt f-center" x="520" y="68">АР — источник</text>
+  <text class="f-dim f-center" x="520" y="86">координат</text>
+  <rect class="f-box" x="352" y="150" width="118" height="44" rx="10"/>
+  <text class="f-txt f-center" x="411" y="177">Фасад</text>
+  <rect class="f-box" x="486" y="150" width="118" height="44" rx="10"/>
+  <text class="f-txt f-center" x="545" y="177">Отделка</text>
+  <path class="f-accent" d="M520 94v26M411 120h134M411 120v26M545 120v26"/>
+  <circle class="f-dot" cx="411" cy="150" r="4"/>
+  <circle class="f-dot" cx="545" cy="150" r="4"/>
+  <text class="f-accent-txt" x="352" y="228">Связь только вниз, тип Overlay</text>
+  <text class="f-dim" x="352" y="252">Обратно в АР — не рабочий файл,</text>
+  <text class="f-dim" x="352" y="270">а выданный снимок из СОД</text>
+  <text class="f-dim" x="352" y="296">Каждая связь — в своём рабочем наборе</text>
+</svg>`,
+
+  "wall-layers": `
+<svg viewBox="0 0 640 330" role="img" aria-label="Одна многослойная стена против нескольких стен и правило вставки проёма">
+  <text class="f-title" x="16" y="24">Одна многослойная стена</text>
+  <rect class="f-box" x="24" y="44" width="250" height="150" rx="6"/>
+  <rect class="f-fill" x="150" y="44" width="46" height="52"/>
+  <rect class="f-fill" x="150" y="142" width="46" height="52"/>
+  <path class="f-line" d="M84 44v52M150 44v52M196 44v52M84 142v52M150 142v52M196 142v52"/>
+  <text class="f-dim" x="28" y="212">облиц.</text>
+  <text class="f-dim" x="94" y="212">утепл.</text>
+  <text class="f-dim" x="152" y="212">несущ.</text>
+  <text class="f-dim" x="202" y="212">отд.</text>
+  <path class="f-accent" d="M24 96h250M24 142h250"/>
+  <text class="f-accent-txt f-center" x="149" y="124">один проём насквозь</text>
+  <text class="f-dim" x="24" y="242">Окно вставляется в стену —</text>
+  <text class="f-dim" x="24" y="260">Revit сам режет все слои</text>
+  <text class="f-dim" x="24" y="286">Слой основы (Core) задаёт привязки</text>
+  <text class="f-dim" x="24" y="304">и границу помещения</text>
+
+  <path class="f-line f-dash" d="M320 30v280"/>
+
+  <text class="f-title" x="352" y="24">Несколько стен</text>
+  <rect class="f-box" x="352" y="44" width="56" height="150" rx="4"/>
+  <rect class="f-box" x="414" y="44" width="56" height="150" rx="4"/>
+  <rect class="f-box" x="476" y="44" width="76" height="150" rx="4"/>
+  <rect class="f-fill" x="476" y="44" width="76" height="150"/>
+  <text class="f-dim f-center" x="380" y="212">АР</text>
+  <text class="f-dim f-center" x="442" y="212">АР</text>
+  <text class="f-dim f-center" x="514" y="212">КР</text>
+  <path class="f-accent" d="M476 96h76M476 142h76"/>
+  <path class="f-line f-dash" d="M352 96h124M352 142h124"/>
+  <circle class="f-dot" cx="514" cy="119" r="5"/>
+  <text class="f-accent-txt" x="352" y="242">Окно — в несущую стену</text>
+  <text class="f-dim" x="352" y="266">Остальные слои: Wall Opening</text>
+  <text class="f-dim" x="352" y="284">по тем же габаритам</text>
+  <text class="f-dim" x="352" y="310">Дырка должна быть одна, а не три разных</text>
+</svg>`,
+
+  "phases-demo": `
+<svg viewBox="0 0 640 300" role="img" aria-label="Стадии: существующее, демонтаж, новое и закладка проёма">
+  <text class="f-title" x="16" y="24">Существующее</text>
+  <rect class="f-box" x="16" y="44" width="176" height="120" rx="6"/>
+  <rect class="f-fill" x="66" y="74" width="60" height="90"/>
+  <path class="f-accent" d="M66 74h60v90"/>
+  <text class="f-dim f-center" x="96" y="124">дверь</text>
+  <text class="f-dim" x="16" y="190">Стадия возведения =</text>
+  <text class="f-dim" x="16" y="208">«Существующее»</text>
+
+  <text class="f-title" x="232" y="24">Демонтаж</text>
+  <rect class="f-box" x="232" y="44" width="176" height="120" rx="6"/>
+  <path class="f-line f-dash" d="M282 74h60v90h-60z"/>
+  <path class="f-line f-dash" d="M282 74l60 90M342 74l-60 90"/>
+  <text class="f-dim f-center" x="312" y="190">Стадия сноса =</text>
+  <text class="f-dim f-center" x="312" y="208">«Демонтаж»</text>
+  <text class="f-accent-txt" x="232" y="234">Элемент НЕ удаляют</text>
+
+  <text class="f-title" x="448" y="24">Новое</text>
+  <rect class="f-box" x="448" y="44" width="176" height="120" rx="6"/>
+  <rect class="f-fill" x="498" y="74" width="60" height="90"/>
+  <path class="f-accent" d="M498 74h60v90h-60z"/>
+  <path class="f-line" d="M498 92h60M498 110h60M498 128h60M498 146h60"/>
+  <text class="f-dim f-center" x="528" y="190">новая стена «Закладка»</text>
+  <text class="f-dim f-center" x="528" y="208">Стадия возведения = «Новое»</text>
+  <text class="f-accent-txt" x="448" y="234">Отдельный элемент</text>
+
+  <path class="f-arrow" d="M200 104h24M416 104h24"/>
+  <text class="f-dim" x="16" y="268">Ведомость демонтажа — фильтр спецификации по «Стадия сноса»</text>
+  <text class="f-dim" x="16" y="288">Объём заделки — спецификация стен по типу «Закладка проёма»</text>
+</svg>`,
+
+  "detail-views": `
+<svg viewBox="0 0 640 320" role="img" aria-label="Чем отличаются легенда, чертёжный вид и выносной вид узла">
+  <rect class="f-box" x="16" y="40" width="192" height="150" rx="12"/>
+  <text class="f-title f-center" x="112" y="66">Легенда</text>
+  <text class="f-dim f-center" x="112" y="90">условные обозначения,</text>
+  <text class="f-dim f-center" x="112" y="108">экспликация типов</text>
+  <path class="f-line" d="M48 126h32M48 146h32"/>
+  <rect class="f-fill" x="96" y="118" width="70" height="36"/>
+  <text class="f-dim f-center" x="112" y="178">один масштаб на весь вид</text>
+
+  <rect class="f-box" x="224" y="40" width="192" height="150" rx="12"/>
+  <text class="f-title f-center" x="320" y="66">Чертёжный вид</text>
+  <text class="f-dim f-center" x="320" y="90">2D-узел, не связан</text>
+  <text class="f-dim f-center" x="320" y="108">с моделью</text>
+  <path class="f-accent" d="M264 122h112v40h-112z"/>
+  <path class="f-line" d="M282 122v40M300 122v40M318 122v40"/>
+  <text class="f-accent-txt f-center" x="320" y="180">свой масштаб у каждого</text>
+
+  <rect class="f-box" x="432" y="40" width="192" height="150" rx="12"/>
+  <text class="f-title f-center" x="528" y="66">Выносной вид</text>
+  <text class="f-dim f-center" x="528" y="90">режет реальную модель,</text>
+  <text class="f-dim f-center" x="528" y="108">обновляется сам</text>
+  <rect class="f-fill" x="472" y="118" width="112" height="44"/>
+  <path class="f-accent f-dash" d="M472 118h112v44h-112z"/>
+  <circle class="f-dot" cx="528" cy="140" r="5"/>
+  <text class="f-dim f-center" x="528" y="180">дороже в поддержке</text>
+
+  <text class="f-accent-txt" x="16" y="230">Правило: один узел = один чертёжный вид</text>
+  <text class="f-dim" x="16" y="254">Тогда у каждого узла свой номер, масштаб и заголовок,</text>
+  <text class="f-dim" x="16" y="274">его можно переставить на другой лист и переиспользовать.</text>
+  <text class="f-dim" x="16" y="300">Десять узлов в одной легенде — обратной дороги нет.</text>
+</svg>`,
+
+  "vg-priority": `
+<svg viewBox="0 0 640 300" role="img" aria-label="Порядок применения переопределений графики на виде">
+  <text class="f-title" x="16" y="24">Что побеждает на виде — сверху вниз</text>
+  <rect class="f-fill" x="16" y="44" width="450" height="42" rx="10"/>
+  <path class="f-accent" d="M16 44h450v42H16z"/>
+  <text class="f-txt" x="34" y="70">1. Переопределение конкретного элемента</text>
+  <text class="f-dim" x="480" y="70">сильнее всего</text>
+  <rect class="f-box" x="16" y="96" width="450" height="42" rx="10"/>
+  <text class="f-txt" x="34" y="122">2. Фильтры — сверху вниз по списку</text>
+  <text class="f-dim" x="480" y="122">порядок важен</text>
+  <rect class="f-box" x="16" y="148" width="450" height="42" rx="10"/>
+  <text class="f-txt" x="34" y="174">3. Переопределение категории (V/G)</text>
+  <text class="f-dim" x="480" y="174">вся категория</text>
+  <rect class="f-box" x="16" y="200" width="450" height="42" rx="10"/>
+  <text class="f-txt" x="34" y="226">4. Настройки вида и шаблона вида</text>
+  <text class="f-dim" x="480" y="226">основа</text>
+  <path class="f-arrow" d="M241 86v10M241 138v10M241 190v10"/>
+  <text class="f-dim" x="16" y="274">Первый сработавший фильтр забирает элемент — следующие к нему уже не применяются</text>
+</svg>`,
+
+  "worksets-map": `
+<svg viewBox="0 0 640 300" role="img" aria-label="Правильная и неправильная разбивка рабочих наборов">
+  <text class="f-title" x="16" y="24">Рабочий набор — про загрузку и доступ, а не про порядок в модели</text>
+  <rect class="f-box" x="16" y="42" width="290" height="204" rx="12"/>
+  <text class="f-accent-txt" x="34" y="70">Так правильно</text>
+  <text class="f-txt" x="34" y="96">00_Оси_Уровни</text>
+  <text class="f-txt" x="34" y="120">01_Несущие</text>
+  <text class="f-txt" x="34" y="144">02_Перегородки</text>
+  <text class="f-txt" x="34" y="168">03_Заполнения_проёмов</text>
+  <text class="f-txt" x="34" y="192">10_Связь_КР</text>
+  <text class="f-txt" x="34" y="216">11_Связь_ИОС</text>
+  <text class="f-dim" x="34" y="238">5–15 наборов, каждая связь — свой</text>
+
+  <rect class="f-box" x="334" y="42" width="290" height="204" rx="12"/>
+  <text class="f-dim" x="352" y="70">Так не надо</text>
+  <text class="f-txt" x="352" y="96">Иванов</text>
+  <text class="f-txt" x="352" y="120">Петров</text>
+  <text class="f-txt" x="352" y="144">Этаж_1</text>
+  <text class="f-txt" x="352" y="168">Этаж_2</text>
+  <text class="f-txt" x="352" y="192">Workset1</text>
+  <path class="f-line" d="M352 90h58M352 114h64M352 138h58M352 162h58M352 186h74"/>
+  <text class="f-dim" x="352" y="216">Именной набор блокирует работу,</text>
+  <text class="f-dim" x="352" y="234">когда автор в отпуске</text>
+
+  <text class="f-dim" x="16" y="276">Заимствование элементов Revit делает сам — забирать набор целиком нужно редко и ненадолго</text>
+</svg>`,
+
+  "file-naming": `
+<svg viewBox="0 0 640 260" role="img" aria-label="Разбор шаблона имени файла ведомости объёмов работ">
+  <text class="f-title" x="16" y="24">Шаблон имени файла</text>
+  <rect class="f-box" x="16" y="42" width="608" height="46" rx="10"/>
+  <text class="f-txt" x="32" y="72">Проект_Секция_Раздел_Тип_Вид работ_Версия_Дата</text>
+  <text class="f-accent-txt" x="32" y="118">Mytishchi7_K1_AR_VOR_Montazh_v03_2026-06-06.xlsx</text>
+  <text class="f-accent-txt" x="32" y="142">Mytishchi7_K1_AR_VOR_Demontazh_v03_2026-06-06.xlsx</text>
+  <rect class="f-box" x="16" y="166" width="196" height="70" rx="10"/>
+  <text class="f-txt f-center" x="114" y="194">Дата ISO</text>
+  <text class="f-dim f-center" x="114" y="216">ГГГГ-ММ-ДД сортируется</text>
+  <rect class="f-box" x="222" y="166" width="196" height="70" rx="10"/>
+  <text class="f-txt f-center" x="320" y="194">Версия с нулём</text>
+  <text class="f-dim f-center" x="320" y="216">v03, а не v3</text>
+  <rect class="f-box" x="428" y="166" width="196" height="70" rx="10"/>
+  <text class="f-txt f-center" x="526" y="194">Монтаж ≠ демонтаж</text>
+  <text class="f-dim f-center" x="526" y="216">это разные ведомости</text>
 </svg>`
 };
