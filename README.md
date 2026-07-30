@@ -2,7 +2,7 @@
 
 Приложение для телефона (PWA) с материалами по BIM/ТИМ, Revit, Navisworks, AutoCAD и Civil 3D.
 
-Открыть: https://big-arch.github.io/bookwords-app/bim/
+Открыть: https://big-arch.github.io/bim-learning-app/
 
 ## Что внутри
 
@@ -29,33 +29,32 @@
 
 Из корня репозитория:
 
-```powershell
-node server.cjs
+```bash
+python -m http.server 8000
 ```
 
-Затем открыть http://127.0.0.1:5176/bim/index.html
+Затем открыть http://localhost:8000/index.html
 
 ## Структура файлов
 
 ```
-bim/
-  index.html          — каркас приложения
-  styles.css          — оформление, светлая и тёмная темы
-  app.js              — вся логика: маршруты, тесты, прогресс, поиск
-  data/
-    course-bim.js         — курс «BIM и ТИМ»
-    course-revit.js       — курс Revit
-    course-navisworks.js  — курс Navisworks
-    course-autocad.js     — курс AutoCAD
-    course-civil3d.js     — курс Civil 3D
-    glossary.js           — словарь терминов
-    videos.js             — каталог видеоподборок
-    figures.js            — схемы-иллюстрации (SVG)
-  manifest.webmanifest — описание PWA
-  sw.js                — офлайн-кэш
-  icons/               — иконки приложения
-  build-icons.cjs      — генератор PNG-иконок (node bim/build-icons.cjs)
-  version.json         — версия опубликованной сборки
+index.html          — каркас приложения
+styles.css          — оформление, светлая и тёмная темы
+app.js              — вся логика: маршруты, тесты, прогресс, поиск
+data/
+  course-bim.js         — курс «BIM и ТИМ»
+  course-revit.js       — курс Revit
+  course-navisworks.js  — курс Navisworks
+  course-autocad.js     — курс AutoCAD
+  course-civil3d.js     — курс Civil 3D
+  glossary.js           — словарь терминов
+  videos.js             — каталог видеоподборок
+  figures.js            — схемы-иллюстрации (SVG)
+manifest.webmanifest — описание PWA
+sw.js                — офлайн-кэш
+icons/               — иконки приложения
+build-icons.cjs      — генератор PNG-иконок
+version.json         — версия опубликованной сборки
 ```
 
 ## Как добавить свой урок
