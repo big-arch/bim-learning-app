@@ -1,6 +1,6 @@
 {
   "app": "BIM Academy",
-  "version": "2026-08-03-v5",
+  "version": "2026-08-03-v6",
   "features": [
     "courses-bim-revit-navisworks-autocad-civil3d",
     "course-practice-real-project-questions",
@@ -9,6 +9,8 @@
     "news-sources-and-regulatory-timeline",
     "optional-rss-feed-via-proxy",
     "news-tab-in-bottom-nav",
+    "feed-diagnostics-per-source",
+    "cloudflare-worker-feed-proxy",
     "lessons-with-svg-diagrams",
     "quiz-single-multi-bool-input",
     "course-exam-and-mistake-review",

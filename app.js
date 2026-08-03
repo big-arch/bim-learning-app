@@ -1503,22 +1503,61 @@
     // Если прокси не задан, пробуем забрать ленту напрямую. Для ленты, лежащей
     // на том же домене, что и приложение, этого достаточно — CORS не мешает.
     const failed = [];
+    const perSource = [];
     return Promise.all(
       sources.map((s) =>
         fetch(proxied(s.feed) || s.feed, { cache: "no-store" })
-          .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
-          .then((t) => parseFeed(t, s))
-          .catch(() => {
+          .then((r) => (r.ok ? r.text() : Promise.reject(new Error("ответ " + r.status))))
+          .then((t) => {
+            const items = parseFeed(t, s);
+            perSource.push({
+              title: s.title,
+              ok: items.length > 0,
+              count: items.length,
+              note: items.length ? "" : "ответила, но записей нет — похоже, это не RSS"
+            });
+            return items;
+          })
+          .catch((err) => {
             failed.push(s.title);
+            perSource.push({
+              title: s.title,
+              ok: false,
+              count: 0,
+              note: err && err.message ? err.message : "не отвечает или закрыта политикой CORS"
+            });
             return [];
           })
       )
     ).then((lists) => {
       const items = [].concat.apply([], lists).sort((a, b) => b.ts - a.ts).slice(0, 60);
-      const data = { items: items, failed: failed, fetchedAt: Date.now() };
+      const data = { items: items, failed: failed, perSource: perSource, fetchedAt: Date.now() };
       if (items.length) writeNewsCache(data);
       return data;
     });
+  }
+
+  function feedStatusHtml(perSource) {
+    if (!perSource || !perSource.length) return "";
+    const bad = perSource.filter((s) => !s.ok).length;
+    return (
+      '<details class="term mt"><summary>Состояние лент' +
+      (bad ? " — не отвечает: " + bad : "") +
+      '</summary><div class="term-body">' +
+      perSource
+        .map(
+          (s) =>
+            '<p class="small">' +
+            (s.ok ? "✅ " : "⚠️ ") +
+            "<b>" +
+            esc(s.title) +
+            "</b> — " +
+            (s.ok ? s.count + " " + plural(s.count, "запись", "записи", "записей") : esc(s.note)) +
+            "</p>"
+        )
+        .join("") +
+      "</div></details>"
+    );
   }
 
   function fmtFeedDate(item) {
@@ -1578,7 +1617,7 @@
       html +=
         '<div class="note tip"><b>Лента не настроена</b><p>В каталоге ниже пока нет источников с RSS. Добавьте свой источник вместе со ссылкой на ленту — и свежие заголовки появятся здесь. Если лента лежит на чужом сайте, дополнительно понадобится прокси: он настраивается в «Ещё» → «Новости».</p></div>';
     } else if (cache && cache.items && cache.items.length) {
-      html += feedListHtml(cache.items.filter((i) => i.region === region), cache.fetchedAt);
+      html += feedListHtml(cache.items.filter((i) => i.region === region), cache.fetchedAt) + feedStatusHtml(cache.perSource);
     } else {
       html += '<p class="muted small">Загружаю…</p>';
     }
@@ -1661,14 +1700,16 @@
         if (!data.items.length) {
           target.innerHTML =
             '<div class="note warn"><b>Не удалось загрузить ленту</b><p>' +
-            (data.failed.length ? "Не ответили: " + esc(data.failed.join(", ")) + ". " : "") +
             (proxied("test")
-              ? "Проверьте адрес прокси и доступность источников."
-              : "Чужие ленты браузер напрямую забрать не может — укажите адрес прокси в «Ещё» → «Новости».") +
-            " Каталог ниже работает без интернета.</p></div>";
+              ? "Прокси задан, но источники не ответили. Разверните «Состояние лент» — там написано, что именно пошло не так по каждому."
+              : "Чужие ленты браузер напрямую забрать не может: мешает политика CORS. Нужен прокси — адрес задаётся в «Ещё» → «Новости», там же описано, как его поднять.") +
+            " Каталог источников ниже работает и без этого.</p></div>" +
+            feedStatusHtml(data.perSource);
           return;
         }
-        target.innerHTML = feedListHtml(data.items.filter((i) => i.region === region), data.fetchedAt);
+        target.innerHTML =
+          feedListHtml(data.items.filter((i) => i.region === region), data.fetchedAt) +
+          feedStatusHtml(data.perSource);
         if (!silent) toast("Лента обновлена");
       })
       .catch(() => {
@@ -1784,8 +1825,9 @@
       '<input class="answer-input mt" id="newsProxy" type="text" placeholder="https://ваш-сервер/feed?url=" value="' +
       esc(state.settings.newsProxy || "") +
       '" />' +
-      '<button class="btn primary block mt" data-act="save-proxy">Сохранить</button>' +
-      '<p class="muted small mt">Как поднять такой прокси на своём сервере — в файле deploy/README.md.</p></div></section>';
+      '<div class="btn-row mt"><button class="btn primary" data-act="save-proxy">Сохранить</button>' +
+      '<button class="btn" data-act="test-feeds">Проверить ленты</button></div>' +
+      '<p class="muted small mt">Как поднять такой прокси бесплатно за пять минут — в файле deploy/README.md, раздел про живую ленту.</p></div></section>';
 
     html +=
       '<section class="section"><div class="section-head"><h2>Данные</h2></div>' +
@@ -1957,6 +1999,24 @@
     if (act === "news-refresh") {
       const params = new URLSearchParams((location.hash.split("?")[1] || ""));
       refreshFeed(params.get("region") || "ru", false);
+      return;
+    }
+    if (act === "test-feeds") {
+      const val = document.getElementById("newsProxy").value.trim();
+      if (val && !/^https?:\/\//i.test(val)) return toast("Адрес должен начинаться с http");
+      state.settings.newsProxy = val;
+      save();
+      if (!feedSources().length) return toast("Сначала добавьте источник со ссылкой на RSS");
+      toast("Проверяю…");
+      loadFeeds().then((data) => {
+        const ok = (data.perSource || []).filter((s) => s.ok);
+        const bad = (data.perSource || []).filter((s) => !s.ok);
+        toast(
+          ok.length
+            ? "Работает: " + ok.length + " из " + (ok.length + bad.length) + ". Записей: " + data.items.length
+            : "Ни одна лента не ответила. Подробности — во вкладке «Новости»"
+        );
+      });
       return;
     }
     if (act === "save-proxy") {
