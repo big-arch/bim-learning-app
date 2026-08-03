@@ -167,9 +167,20 @@ html[data-theme="dark"] .ico-moon { display: block; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.tab span { white-space: nowrap; }
 .tab.active { color: var(--accent); }
 .tab.active svg { stroke-width: 2.2; }
 .tab:active { transform: scale(0.94); }
+
+/* Шесть вкладок на узком экране: ужимаем, чтобы подписи не переносились. */
+@media (max-width: 400px) {
+  .tab { font-size: 10px; gap: 2px; }
+  .tab svg { width: 21px; height: 21px; }
+}
+@media (max-width: 340px) {
+  .tab { font-size: 9.5px; }
+  .tab svg { width: 20px; height: 20px; }
+}
 
 /* ---------- Типовые блоки ---------- */
 .section { margin: 0 0 22px; }

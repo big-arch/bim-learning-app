@@ -460,7 +460,7 @@
       actionTile("#/quiz/mix/10", "⚡", "Быстрый тест", "10 вопросов") +
       actionTile("#/quiz/mistakes/all", "🎯", "Мои ошибки", due ? due + " к повтору" : "всё закрыто") +
       actionTile("#/glossary", "📖", "Глоссарий", CONTENT.glossary.length + " терминов") +
-      actionTile("#/news", "📰", "Новости BIM", "источники и хронология") +
+      actionTile("#/keys", "⌨️", "Горячие клавиши", "шпаргалки") +
       "</div></section>";
 
     html +=
@@ -1741,9 +1741,6 @@
       '<a class="menu-item" href="#/bookmarks"><span class="mi-ico">★</span><span class="mi-body"><b>Закладки</b><span class="mi-sub">' +
       state.bookmarks.length +
       ' сохранённых уроков</span></span></a>' +
-      '<a class="menu-item" href="#/news"><span class="mi-ico">📰</span><span class="mi-body"><b>Новости BIM</b><span class="mi-sub">' +
-      NEWS.sources.length +
-      " источников по России и миру</span></span></a>" +
       '<a class="menu-item" href="#/keys"><span class="mi-ico">⌨️</span><span class="mi-body"><b>Горячие клавиши</b><span class="mi-sub">Revit, AutoCAD и другие</span></span></a>' +
       '<a class="menu-item" href="#/glossary"><span class="mi-ico">📖</span><span class="mi-body"><b>Глоссарий</b><span class="mi-sub">' +
       CONTENT.glossary.length +
@@ -2094,7 +2091,7 @@
     return [parts[0] || "home", parts[1], parts[2], new URLSearchParams(search || "")];
   }
 
-  const TAB_ROUTES = { home: "home", courses: "courses", tests: "tests", videos: "videos", more: "more" };
+  const TAB_ROUTES = { home: "home", courses: "courses", tests: "tests", videos: "videos", news: "news", more: "more" };
 
   function route() {
     const [name, a, b, params] = currentRoute();
