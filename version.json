@@ -1,11 +1,13 @@
 {
   "app": "BIM Academy",
-  "version": "2026-07-30-v3",
+  "version": "2026-08-03-v4",
   "features": [
     "courses-bim-revit-navisworks-autocad-civil3d",
     "course-practice-real-project-questions",
     "course-bim-manager",
     "course-software-catalog-with-pricing",
+    "news-sources-and-regulatory-timeline",
+    "optional-rss-feed-via-proxy",
     "lessons-with-svg-diagrams",
     "quiz-single-multi-bool-input",
     "course-exam-and-mistake-review",

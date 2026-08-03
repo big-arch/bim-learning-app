@@ -23,7 +23,8 @@ const files = [
   "data/course-manager.js",
   "data/course-software.js",
   "data/glossary.js",
-  "data/videos.js"
+  "data/videos.js",
+  "data/news.js"
 ];
 
 // Все ли файлы данных подключены в index.html и закэшированы service worker'ом.
@@ -116,6 +117,21 @@ C.courses.forEach((c) =>
   )
 );
 
+const news = C.news || { sources: [], timeline: [] };
+const seenSources = new Set();
+news.sources.forEach((s) => {
+  if (seenSources.has(s.id)) errors.push("источник новостей: дублируется id " + s.id);
+  seenSources.add(s.id);
+  if (!s.title || !s.url) errors.push("источник " + s.id + ": нет названия или ссылки");
+  if (!/^https?:\/\//.test(s.url || "")) errors.push("источник " + s.id + ": ссылка должна начинаться с http");
+  if (s.feed && !/^https?:\/\//.test(s.feed)) errors.push("источник " + s.id + ": некорректная ссылка на ленту");
+  if (!["ru", "world"].includes(s.region)) errors.push("источник " + s.id + ": region должен быть ru или world");
+});
+news.timeline.forEach((t, i) => {
+  if (!t.year || !t.title || !t.text) errors.push("хронология, запись " + (i + 1) + ": нет года, заголовка или текста");
+  if (!["ru", "world"].includes(t.region)) errors.push("хронология, запись " + (i + 1) + ": region должен быть ru или world");
+});
+
 const lessons = C.courses.reduce((a, c) => a + c.lessons.length, 0);
 const questions = C.courses.reduce((a, c) => a + c.lessons.reduce((b, l) => b + l.questions.length, 0), 0);
 
@@ -125,7 +141,8 @@ console.log(
   " | вопросов: " + questions +
   " | терминов: " + C.glossary.length +
   " | видео: " + C.videos.length +
-  " | схем: " + figures.size
+  " | схем: " + figures.size +
+  " | источников новостей: " + news.sources.length
 );
 
 if (orphanTerms.size) {

@@ -84,6 +84,7 @@
     qa: '<path d="M9.2 9a2.8 2.8 0 115.3 1.3c-.5.9-1.6 1.3-2.1 2.1-.3.4-.4.8-.4 1.4"/><circle cx="12" cy="17.6" r="1.2"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/>',
     manage: '<circle cx="12" cy="5.5" r="2.5"/><circle cx="5.5" cy="17" r="2.5"/><circle cx="18.5" cy="17" r="2.5"/><path d="M12 8v3.5M12 11.5H5.5v3M12 11.5h6.5v3"/>',
     soft: '<rect x="3" y="4.5" width="18" height="13" rx="2"/><path d="M8 21h8M12 17.5V21"/><path d="M9.5 9L7.5 11l2 2M14.5 9l2 2-2 2"/>',
+    news: '<path d="M4 5h13v14H5.5A1.5 1.5 0 014 17.5z"/><path d="M17 9h3v8.5a1.5 1.5 0 01-3 0z"/><path d="M7 8.5h7M7 12h7M7 15.5h4"/>',
     play: '<path d="M8 5l12 7-12 7z"/>',
     arrow: '<path d="M9 5l7 7-7 7"/>'
   };
@@ -125,8 +126,9 @@
     history: [],
     days: {},
     streak: { current: 0, best: 0, last: "" },
-    settings: { theme: "auto", goal: 10 },
+    settings: { theme: "auto", goal: 10, newsProxy: "" },
     myVideos: [],
+    mySources: [],
     terms: [],
     flags: {},
     xp: 0,
@@ -458,7 +460,7 @@
       actionTile("#/quiz/mix/10", "⚡", "Быстрый тест", "10 вопросов") +
       actionTile("#/quiz/mistakes/all", "🎯", "Мои ошибки", due ? due + " к повтору" : "всё закрыто") +
       actionTile("#/glossary", "📖", "Глоссарий", CONTENT.glossary.length + " терминов") +
-      actionTile("#/keys", "⌨️", "Горячие клавиши", "шпаргалки") +
+      actionTile("#/news", "📰", "Новости BIM", "источники и хронология") +
       "</div></section>";
 
     html +=
@@ -1429,6 +1431,252 @@
       '<section class="section">' + list.map((l, i) => lessonRow(l, i + 1)).join("") + "</section>";
   }
 
+  /* ================= новости ================= */
+
+  const NEWS = (CONTENT.news && CONTENT.news.sources) ? CONTENT.news : { sources: [], timeline: [] };
+  const NEWS_CACHE_KEY = "bim-academy-news-cache-v1";
+
+  function allSources() {
+    return NEWS.sources.concat(
+      (state.mySources || []).map((s) => Object.assign({ custom: true, kind: "Своё", description: "" }, s))
+    );
+  }
+
+  function feedSources() {
+    return allSources().filter((s) => s.feed);
+  }
+
+  function readNewsCache() {
+    try {
+      const raw = localStorage.getItem(NEWS_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function writeNewsCache(data) {
+    try {
+      localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(data));
+    } catch (e) {
+      /* переполнено или приватный режим — просто не кэшируем */
+    }
+  }
+
+  // Ленты нельзя запросить напрямую: сайты не отдают заголовок CORS.
+  // Поэтому запрос идёт через прокси, адрес которого задаётся в настройках.
+  function proxied(url) {
+    const p = (state.settings.newsProxy || "").trim();
+    if (!p) return "";
+    return p.indexOf("{url}") >= 0 ? p.replace("{url}", encodeURIComponent(url)) : p + encodeURIComponent(url);
+  }
+
+  function parseFeed(text, source) {
+    const doc = new DOMParser().parseFromString(text, "application/xml");
+    if (doc.querySelector("parsererror")) return [];
+    const nodes = doc.querySelectorAll("item, entry");
+    const out = [];
+    nodes.forEach((n) => {
+      const title = (n.querySelector("title") || {}).textContent || "";
+      let link = "";
+      const linkEl = n.querySelector("link");
+      if (linkEl) link = linkEl.getAttribute("href") || linkEl.textContent || "";
+      const dateText =
+        ((n.querySelector("pubDate") || n.querySelector("updated") || n.querySelector("published") || {}).textContent) || "";
+      if (!title.trim()) return;
+      out.push({
+        title: title.trim(),
+        link: link.trim(),
+        date: dateText.trim(),
+        ts: dateText ? Date.parse(dateText) || 0 : 0,
+        source: source.title,
+        region: source.region
+      });
+    });
+    return out;
+  }
+
+  function loadFeeds() {
+    const sources = feedSources();
+    if (!sources.length) return Promise.resolve({ items: [], failed: [], fetchedAt: 0 });
+
+    // Если прокси не задан, пробуем забрать ленту напрямую. Для ленты, лежащей
+    // на том же домене, что и приложение, этого достаточно — CORS не мешает.
+    const failed = [];
+    return Promise.all(
+      sources.map((s) =>
+        fetch(proxied(s.feed) || s.feed, { cache: "no-store" })
+          .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+          .then((t) => parseFeed(t, s))
+          .catch(() => {
+            failed.push(s.title);
+            return [];
+          })
+      )
+    ).then((lists) => {
+      const items = [].concat.apply([], lists).sort((a, b) => b.ts - a.ts).slice(0, 60);
+      const data = { items: items, failed: failed, fetchedAt: Date.now() };
+      if (items.length) writeNewsCache(data);
+      return data;
+    });
+  }
+
+  function fmtFeedDate(item) {
+    if (!item.ts) return item.date || "";
+    const d = new Date(item.ts);
+    return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+  }
+
+  function newsSourceCard(s) {
+    return (
+      '<a class="menu-item" href="' +
+      esc(s.url) +
+      '" target="_blank" rel="noopener"><span class="mi-ico">📰</span><span class="mi-body"><b>' +
+      esc(s.title) +
+      '</b><span class="mi-sub">' +
+      esc(s.kind) +
+      (s.feed ? " · есть RSS" : "") +
+      "</span>" +
+      (s.description ? '<span class="mi-sub">' + esc(s.description) + "</span>" : "") +
+      "</span></a>" +
+      (s.custom
+        ? '<div class="btn-row" style="margin:6px 0 4px"><button class="btn small" data-act="del-source" data-id="' +
+          esc(s.id) +
+          '">Удалить источник</button></div>'
+        : "")
+    );
+  }
+
+  function renderNews(params) {
+    setTop("Новости BIM", "источники и хронология");
+    const region = (params && params.get("region")) || "ru";
+    const sources = allSources().filter((s) => s.region === region);
+    const timeline = (NEWS.timeline || []).filter((t) => t.region === region).slice().reverse();
+    const cache = readNewsCache();
+
+    let html =
+      '<div class="row row-wrap mb">' +
+      [["ru", "Россия"], ["world", "Мир"]]
+        .map(
+          (r) =>
+            '<a class="chip' +
+            (region === r[0] ? " accent" : "") +
+            '" href="#/news?region=' +
+            r[0] +
+            '">' +
+            r[1] +
+            "</a>"
+        )
+        .join("") +
+      "</div>";
+
+    // Живая лента: показывается, только если настроен прокси и есть ленты.
+    html += '<section class="section"><div class="section-head"><h2>Лента</h2>';
+    if (feedSources().length) html += '<button class="btn small" data-act="news-refresh">Обновить</button>';
+    html += "</div><div id=\"newsFeed\">";
+    if (!feedSources().length) {
+      html +=
+        '<div class="note tip"><b>Лента не настроена</b><p>В каталоге ниже пока нет источников с RSS. Добавьте свой источник вместе со ссылкой на ленту — и свежие заголовки появятся здесь. Если лента лежит на чужом сайте, дополнительно понадобится прокси: он настраивается в «Ещё» → «Новости».</p></div>';
+    } else if (cache && cache.items && cache.items.length) {
+      html += feedListHtml(cache.items.filter((i) => i.region === region), cache.fetchedAt);
+    } else {
+      html += '<p class="muted small">Загружаю…</p>';
+    }
+    html += "</div></section>";
+
+    html +=
+      '<section class="section"><div class="section-head"><h2>Где смотреть</h2><span class="muted small">' +
+      sources.length +
+      "</span></div>";
+    if (!sources.length) html += '<div class="empty"><span class="em">📰</span>Источников пока нет</div>';
+    sources.forEach((s) => {
+      html += newsSourceCard(s);
+    });
+    html += "</section>";
+
+    if (timeline.length) {
+      html += '<section class="section"><div class="section-head"><h2>Как мы сюда пришли</h2></div>';
+      timeline.forEach((t) => {
+        html +=
+          '<div class="card mb"><div class="row"><span class="chip accent">' +
+          esc(t.year) +
+          "</span></div><h3>" +
+          esc(t.title) +
+          "</h3><p>" +
+          esc(t.text) +
+          "</p></div>";
+      });
+      html +=
+        '<div class="note warn"><b>Это ориентиры, а не выписка из реестра</b><p>Номера документов и даты вступления требований в силу меняются, часть документов существует в виде проектов. Перед тем как ссылаться на них в договоре или в переписке с заказчиком, сверьтесь с действующей редакцией в официальном источнике.</p></div>';
+      html += "</section>";
+    }
+
+    html +=
+      '<section class="section"><details class="term"><summary>➕ Добавить свой источник</summary><div class="term-body">' +
+      '<input class="answer-input" id="srcTitle" type="text" placeholder="Название" />' +
+      '<input class="answer-input mt" id="srcUrl" type="url" placeholder="Ссылка на сайт (https://...)" />' +
+      '<input class="answer-input mt" id="srcFeed" type="url" placeholder="Ссылка на RSS — необязательно" />' +
+      '<select class="answer-input mt" id="srcRegion"><option value="ru">Россия</option><option value="world">Мир</option></select>' +
+      '<button class="btn primary block mt" data-act="add-source">Сохранить</button>' +
+      '<p class="muted small mt">Источник сохранится только на этом устройстве и попадёт в экспорт прогресса.</p>' +
+      "</div></details></section>";
+
+    view.innerHTML = html;
+
+    // Подгружаем ленту после отрисовки, чтобы не задерживать экран.
+    if (feedSources().length) refreshFeed(region, !cache);
+  }
+
+  function feedListHtml(items, fetchedAt) {
+    if (!items.length) return '<p class="muted small">Свежих записей нет.</p>';
+    return (
+      items
+        .slice(0, 20)
+        .map(
+          (i) =>
+            '<a class="menu-item" href="' +
+            esc(i.link) +
+            '" target="_blank" rel="noopener"><span class="mi-ico">·</span><span class="mi-body"><b>' +
+            esc(i.title) +
+            '</b><span class="mi-sub">' +
+            esc(i.source) +
+            (fmtFeedDate(i) ? " · " + esc(fmtFeedDate(i)) : "") +
+            "</span></span></a>"
+        )
+        .join("") +
+      (fetchedAt
+        ? '<p class="muted small mt">Обновлено ' + new Date(fetchedAt).toLocaleString("ru-RU") + "</p>"
+        : "")
+    );
+  }
+
+  function refreshFeed(region, silent) {
+    const box = document.getElementById("newsFeed");
+    if (!box) return;
+    if (!silent) box.innerHTML = '<p class="muted small">Обновляю…</p>';
+    loadFeeds()
+      .then((data) => {
+        const target = document.getElementById("newsFeed");
+        if (!target) return;
+        if (!data.items.length) {
+          target.innerHTML =
+            '<div class="note warn"><b>Не удалось загрузить ленту</b><p>' +
+            (data.failed.length ? "Не ответили: " + esc(data.failed.join(", ")) + ". " : "") +
+            (proxied("test")
+              ? "Проверьте адрес прокси и доступность источников."
+              : "Чужие ленты браузер напрямую забрать не может — укажите адрес прокси в «Ещё» → «Новости».") +
+            " Каталог ниже работает без интернета.</p></div>";
+          return;
+        }
+        target.innerHTML = feedListHtml(data.items.filter((i) => i.region === region), data.fetchedAt);
+        if (!silent) toast("Лента обновлена");
+      })
+      .catch(() => {
+        const target = document.getElementById("newsFeed");
+        if (target && !silent) target.innerHTML = '<p class="muted small">Не удалось обновить ленту.</p>';
+      });
+  }
+
   /* ================= профиль / ещё ================= */
 
   function renderMore() {
@@ -1493,6 +1741,9 @@
       '<a class="menu-item" href="#/bookmarks"><span class="mi-ico">★</span><span class="mi-body"><b>Закладки</b><span class="mi-sub">' +
       state.bookmarks.length +
       ' сохранённых уроков</span></span></a>' +
+      '<a class="menu-item" href="#/news"><span class="mi-ico">📰</span><span class="mi-body"><b>Новости BIM</b><span class="mi-sub">' +
+      NEWS.sources.length +
+      " источников по России и миру</span></span></a>" +
       '<a class="menu-item" href="#/keys"><span class="mi-ico">⌨️</span><span class="mi-body"><b>Горячие клавиши</b><span class="mi-sub">Revit, AutoCAD и другие</span></span></a>' +
       '<a class="menu-item" href="#/glossary"><span class="mi-ico">📖</span><span class="mi-body"><b>Глоссарий</b><span class="mi-sub">' +
       CONTENT.glossary.length +
@@ -1529,6 +1780,15 @@
         )
         .join("") +
       '</div><p class="muted small mt">Столько вопросов нужно решить, чтобы день засчитался в серию.</p></section>';
+
+    html +=
+      '<section class="section"><div class="section-head"><h2>Новости</h2></div>' +
+      '<div class="card"><p class="muted small">Приложение может показывать свежие заголовки прямо в разделе «Новости». Браузеру нельзя забирать чужие RSS-ленты напрямую, поэтому нужен адрес прокси. Если оставить поле пустым, раздел работает как каталог источников — это тоже полностью рабочий вариант.</p>' +
+      '<input class="answer-input mt" id="newsProxy" type="text" placeholder="https://ваш-сервер/feed?url=" value="' +
+      esc(state.settings.newsProxy || "") +
+      '" />' +
+      '<button class="btn primary block mt" data-act="save-proxy">Сохранить</button>' +
+      '<p class="muted small mt">Как поднять такой прокси на своём сервере — в файле deploy/README.md.</p></div></section>';
 
     html +=
       '<section class="section"><div class="section-head"><h2>Данные</h2></div>' +
@@ -1667,6 +1927,47 @@
       state.myVideos.splice(Number(el.dataset.i), 1);
       save();
       route();
+      return;
+    }
+    if (act === "add-source") {
+      const title = document.getElementById("srcTitle").value.trim();
+      const url = document.getElementById("srcUrl").value.trim();
+      const feed = document.getElementById("srcFeed").value.trim();
+      const region = document.getElementById("srcRegion").value;
+      if (!title || !url) return toast("Заполните название и ссылку");
+      if (!/^https?:\/\//i.test(url)) return toast("Ссылка должна начинаться с http");
+      if (feed && !/^https?:\/\//i.test(feed)) return toast("Ссылка на ленту должна начинаться с http");
+      state.mySources = state.mySources || [];
+      state.mySources.unshift({
+        id: "my-" + Date.now(),
+        title: title,
+        url: url,
+        feed: feed,
+        region: region
+      });
+      save();
+      toast("Источник сохранён");
+      route();
+      return;
+    }
+    if (act === "del-source") {
+      const id = el.dataset.id;
+      state.mySources = (state.mySources || []).filter((s) => s.id !== id);
+      save();
+      route();
+      return;
+    }
+    if (act === "news-refresh") {
+      const params = new URLSearchParams((location.hash.split("?")[1] || ""));
+      refreshFeed(params.get("region") || "ru", false);
+      return;
+    }
+    if (act === "save-proxy") {
+      const val = document.getElementById("newsProxy").value.trim();
+      if (val && !/^https?:\/\//i.test(val)) return toast("Адрес должен начинаться с http");
+      state.settings.newsProxy = val;
+      save();
+      toast(val ? "Прокси сохранён" : "Лента отключена");
       return;
     }
     if (act === "export") return exportData();
@@ -1833,6 +2134,9 @@
         break;
       case "keys":
         renderKeys();
+        break;
+      case "news":
+        renderNews(params);
         break;
       case "bookmarks":
         renderBookmarks();

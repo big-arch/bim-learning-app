@@ -1,4 +1,4 @@
-const CACHE_NAME = "bim-academy-v3";
+const CACHE_NAME = "bim-academy-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -17,6 +17,7 @@ const APP_SHELL = [
   "./data/course-software.js",
   "./data/glossary.js",
   "./data/videos.js",
+  "./data/news.js",
   "./icons/bim-icon.svg",
   "./icons/bim-icon-180.png",
   "./icons/bim-icon-192.png",
