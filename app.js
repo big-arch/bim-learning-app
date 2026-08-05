@@ -129,6 +129,10 @@
     settings: { theme: "auto", goal: 10, newsProxy: "" },
     myVideos: [],
     mySources: [],
+    checkProjects: [],
+    checkDone: {},
+    checkCurrent: "",
+    cards: {},
     terms: [],
     flags: {},
     xp: 0,
@@ -220,6 +224,26 @@
       href: "#/glossary?q=" + encodeURIComponent(t.term),
       hay: norm(t.term + " " + (t.full || "") + " " + t.text),
       course: t.course
+    });
+  });
+  (CONTENT.warnings || []).forEach((w) => {
+    searchIndex.push({
+      kind: w.kind === "error" ? "Ошибка Revit" : "Предупреждение",
+      title: w.ru,
+      sub: w.en + " · " + w.why,
+      href: "#/warnings?q=" + encodeURIComponent(w.ru.slice(0, 30)),
+      hay: norm(w.ru + " " + w.en + " " + w.why + " " + w.fix.join(" ") + " " + (w.tags || []).join(" ")),
+      course: "revit"
+    });
+  });
+  (CONTENT.checklists || []).forEach((c) => {
+    searchIndex.push({
+      kind: "Чек-лист",
+      title: c.title,
+      sub: c.intro,
+      href: "#/checks?list=" + c.id,
+      hay: norm(c.title + " " + c.intro + " " + checkItems(c).map((i) => i.text).join(" ")),
+      course: "practice"
     });
   });
   CONTENT.videos.forEach((v) => {
@@ -459,8 +483,8 @@
       '<section class="section"><div class="grid grid-2">' +
       actionTile("#/quiz/mix/10", "⚡", "Быстрый тест", "10 вопросов") +
       actionTile("#/quiz/mistakes/all", "🎯", "Мои ошибки", due ? due + " к повтору" : "всё закрыто") +
-      actionTile("#/glossary", "📖", "Глоссарий", CONTENT.glossary.length + " терминов") +
-      actionTile("#/keys", "⌨️", "Горячие клавиши", "шпаргалки") +
+      actionTile("#/cards", "🃏", "Карточки", dueCards().length ? dueCards().length + " к повтору" : "термины") +
+      actionTile("#/checks", "✅", "Чек-листы", "старт, выдача, приёмка") +
       "</div></section>";
 
     html +=
@@ -1431,6 +1455,535 @@
       '<section class="section">' + list.map((l, i) => lessonRow(l, i + 1)).join("") + "</section>";
   }
 
+  /* ================= чек-листы ================= */
+
+  const CHECKLISTS = CONTENT.checklists || [];
+
+  function checkItems(list) {
+    return list.groups.reduce((a, g) => a.concat(g.items), []);
+  }
+
+  function currentProject() {
+    const list = state.checkProjects || [];
+    if (!list.length) return null;
+    return list.filter((p) => p.id === state.checkCurrent)[0] || list[0];
+  }
+
+  function checkProgress(list, projectId) {
+    const done = (state.checkDone || {})[projectId] || {};
+    const items = checkItems(list);
+    const n = items.filter((i) => done[i.id]).length;
+    return { done: n, total: items.length, pct: items.length ? Math.round((n / items.length) * 100) : 0 };
+  }
+
+  // Пересчёт счётчиков на экране чек-листа без перерисовки страницы.
+  function updateCheckCounters() {
+    const project = currentProject();
+    if (!project) return;
+    const listId = (currentRoute()[3].get("list")) || CHECKLISTS[0].id;
+    const list = CHECKLISTS.filter((c) => c.id === listId)[0] || CHECKLISTS[0];
+    const done = (state.checkDone || {})[project.id] || {};
+    const prog = checkProgress(list, project.id);
+
+    const bar = document.getElementById("checkBar");
+    if (bar) bar.style.width = prog.pct + "%";
+    const count = document.getElementById("checkCount");
+    if (count) count.textContent = prog.done + " из " + prog.total + " · " + project.name;
+
+    list.groups.forEach((g, gi) => {
+      const badge = document.querySelector('[data-group="' + gi + '"]');
+      if (badge) badge.textContent = g.items.filter((i) => done[i.id]).length + "/" + g.items.length;
+    });
+
+    CHECKLISTS.forEach((c) => {
+      const chip = document.querySelector('a[href="#/checks?list=' + c.id + '"]');
+      if (chip) chip.textContent = c.icon + " " + c.title + " · " + checkProgress(c, project.id).pct + "%";
+    });
+  }
+
+  function renderChecks(params) {
+    setTop("Чек-листы", "перед стартом, выдачей и приёмкой");
+    const project = currentProject();
+    const listId = (params && params.get("list")) || CHECKLISTS[0].id;
+    const list = CHECKLISTS.filter((c) => c.id === listId)[0] || CHECKLISTS[0];
+
+    let html = "";
+
+    if (!project) {
+      html +=
+        '<section class="section"><div class="note tip"><b>Заведите проект</b><p>Отметки хранятся отдельно по каждому объекту, поэтому один и тот же чек-лист можно вести параллельно для нескольких проектов.</p></div>' +
+        '<input class="answer-input mt" id="projName" type="text" placeholder="Название проекта" />' +
+        '<button class="btn primary block mt" data-act="add-project">Создать</button></section>';
+      view.innerHTML = html;
+      return;
+    }
+
+    html +=
+      '<section class="section"><div class="section-head"><h2>Проект</h2></div><div class="row row-wrap">' +
+      state.checkProjects
+        .map(
+          (p) =>
+            '<a class="chip' +
+            (p.id === project.id ? " accent" : "") +
+            '" href="#/checks?list=' +
+            esc(listId) +
+            "&project=" +
+            encodeURIComponent(p.id) +
+            '" data-act="pick-project" data-id="' +
+            esc(p.id) +
+            '">' +
+            esc(p.name) +
+            "</a>"
+        )
+        .join("") +
+      '<button class="chip" data-act="new-project">+ проект</button></div></section>';
+
+    html +=
+      '<section class="section"><div class="row row-wrap">' +
+      CHECKLISTS.map((c) => {
+        const p = checkProgress(c, project.id);
+        return (
+          '<a class="chip' +
+          (c.id === listId ? " accent" : "") +
+          '" href="#/checks?list=' +
+          c.id +
+          '">' +
+          c.icon +
+          " " +
+          esc(c.title) +
+          " · " +
+          p.pct +
+          "%</a>"
+        );
+      }).join("") +
+      "</div></section>";
+
+    const prog = checkProgress(list, project.id);
+    const done = (state.checkDone || {})[project.id] || {};
+
+    html +=
+      '<section class="section"><div class="card"><h3>' +
+      list.icon +
+      " " +
+      esc(list.title) +
+      "</h3><p>" +
+      esc(list.intro) +
+      '</p><div class="progress mt"><span id="checkBar" style="width:' +
+      prog.pct +
+      '%"></span></div><p class="muted small mt" id="checkCount">' +
+      prog.done +
+      " из " +
+      prog.total +
+      " · " +
+      esc(project.name) +
+      "</p></div></section>";
+
+    list.groups.forEach((g, gi) => {
+      const gDone = g.items.filter((i) => done[i.id]).length;
+      html +=
+        '<section class="section"><div class="section-head"><h2>' +
+        esc(g.title) +
+        '</h2><span class="muted small" data-group="' +
+        gi +
+        '">' +
+        gDone +
+        "/" +
+        g.items.length +
+        "</span></div>";
+      g.items.forEach((i) => {
+        const on = !!done[i.id];
+        html +=
+          '<button class="menu-item check-row' +
+          (on ? " on" : "") +
+          '" data-act="toggle-check" data-id="' +
+          esc(i.id) +
+          '"><span class="cb">✓</span><span class="mi-body"><b>' +
+          esc(i.text) +
+          "</b></span></button>";
+      });
+      html += "</section>";
+    });
+
+    html +=
+      '<section class="section"><div class="btn-row">' +
+      '<button class="btn" data-act="reset-check" data-id="' +
+      esc(list.id) +
+      '">Сбросить список</button>' +
+      '<button class="btn" data-act="del-project">Удалить проект</button></div></section>';
+
+    view.innerHTML = html;
+  }
+
+  /* ================= предупреждения Revit ================= */
+
+  const WARNINGS = CONTENT.warnings || [];
+
+  function warningCard(w) {
+    return (
+      '<details class="term" data-term="' +
+      esc(w.id) +
+      '"><summary>' +
+      (w.kind === "error" ? "⛔️ " : "⚠️ ") +
+      esc(w.ru) +
+      '</summary><div class="term-body">' +
+      '<p class="muted small"><code>' +
+      esc(w.en) +
+      "</code></p>" +
+      "<p><b>Чем грозит.</b> " +
+      esc(w.why) +
+      "</p>" +
+      "<p><b>Как чинить</b></p><ol>" +
+      w.fix.map((f) => "<li>" + esc(f) + "</li>").join("") +
+      "</ol>" +
+      (w.lesson && lessonById[w.lesson]
+        ? '<a class="btn small soft mt" href="#/lesson/' + w.lesson + '">Урок: ' + esc(lessonById[w.lesson].title) + "</a>"
+        : "") +
+      "</div></details>"
+    );
+  }
+
+  function renderWarnings(params) {
+    setTop("Предупреждения Revit", "что значит и как чинить");
+    const q = ((params && params.get("q")) || "").trim().toLowerCase();
+    const kind = (params && params.get("kind")) || "all";
+
+    let list = WARNINGS.slice();
+    if (kind !== "all") list = list.filter((w) => w.kind === kind);
+    if (q) {
+      list = list.filter(
+        (w) =>
+          w.ru.toLowerCase().indexOf(q) >= 0 ||
+          w.en.toLowerCase().indexOf(q) >= 0 ||
+          w.why.toLowerCase().indexOf(q) >= 0 ||
+          (w.tags || []).join(" ").toLowerCase().indexOf(q) >= 0
+      );
+    }
+
+    let html =
+      '<section class="section"><input class="answer-input" id="wq" type="search" placeholder="Поиск: текст, смысл или тема" value="' +
+      esc(q) +
+      '" /></section>';
+
+    html +=
+      '<section class="section"><div class="row row-wrap">' +
+      [["all", "Все"], ["warn", "Предупреждения"], ["error", "Ошибки"]]
+        .map(
+          (k) =>
+            '<a class="chip' +
+            (kind === k[0] ? " accent" : "") +
+            '" href="#/warnings?kind=' +
+            k[0] +
+            (q ? "&q=" + encodeURIComponent(q) : "") +
+            '">' +
+            k[1] +
+            "</a>"
+        )
+        .join("") +
+      "</div></section>";
+
+    html +=
+      '<section class="section"><div class="note tip"><b>Английский текст приведён специально</b><p>Именно он попадает в отчёты и в результаты поиска. В русской версии Revit формулировка другая, смысл описан рядом.</p></div></section>';
+
+    html += '<section class="section"><div class="section-head"><h2>Найдено</h2><span class="muted small">' + list.length + "</span></div>";
+    if (!list.length) html += '<div class="empty"><span class="em">🔍</span>Ничего не найдено</div>';
+    list.forEach((w) => {
+      html += warningCard(w);
+    });
+    html += "</section>";
+
+    view.innerHTML = html;
+
+    const input = document.getElementById("wq");
+    if (input) {
+      input.addEventListener("input", () => {
+        const val = input.value.trim();
+        location.replace("#/warnings?kind=" + kind + (val ? "&q=" + encodeURIComponent(val) : ""));
+      });
+    }
+  }
+
+  /* ================= карточки терминов ================= */
+
+  let cardSession = null;
+
+  function dueCards() {
+    const now = Date.now();
+    return CONTENT.glossary.filter((g) => {
+      const c = state.cards[g.term];
+      return c && c.dueAt <= now;
+    });
+  }
+
+  function newCards() {
+    return CONTENT.glossary.filter((g) => !state.cards[g.term]);
+  }
+
+  function startCards(course) {
+    const pool = course && course !== "all" ? CONTENT.glossary.filter((g) => g.course === course) : CONTENT.glossary;
+    const now = Date.now();
+    const due = pool.filter((g) => state.cards[g.term] && state.cards[g.term].dueAt <= now);
+    const fresh = pool.filter((g) => !state.cards[g.term]);
+    const items = due.concat(shuffle(fresh).slice(0, Math.max(0, 15 - due.length))).slice(0, 20);
+    if (!items.length) return null;
+    cardSession = { items: shuffle(items), idx: 0, shown: false, known: 0, total: items.length };
+    return cardSession;
+  }
+
+  function renderCards(params) {
+    setTop("Карточки терминов", "повторение по интервалам");
+
+    if (cardSession && cardSession.idx < cardSession.items.length) return renderCard();
+
+    if (cardSession) {
+      const s = cardSession;
+      cardSession = null;
+      view.innerHTML =
+        '<section class="section"><div class="card"><h3>Готово</h3><p>Вспомнили ' +
+        s.known +
+        " из " +
+        s.total +
+        '.</p><div class="btn-row mt"><a class="btn primary" href="#/cards">Ещё подход</a><a class="btn" href="#/more">Закончить</a></div></div></section>';
+      return;
+    }
+
+    const course = (params && params.get("course")) || "all";
+    const due = dueCards().length;
+    const fresh = newCards().length;
+
+    let html =
+      '<section class="section"><div class="card"><h3>Как это работает</h3><p>Термин показывается без определения — вы вспоминаете сами, потом проверяете. Если вспомнили, термин вернётся нескоро; если нет — уже через несколько часов.</p>' +
+      '<p class="muted small mt">К повтору сейчас: ' +
+      due +
+      " · не открывали: " +
+      fresh +
+      "</p></div></section>";
+
+    html +=
+      '<section class="section"><div class="section-head"><h2>Курс</h2></div><div class="row row-wrap">' +
+      [{ id: "all", title: "Все" }]
+        .concat(CONTENT.courses.map((c) => ({ id: c.id, title: c.title })))
+        .map(
+          (c) =>
+            '<a class="chip' +
+            (course === c.id ? " accent" : "") +
+            '" href="#/cards?course=' +
+            c.id +
+            '">' +
+            esc(c.title) +
+            "</a>"
+        )
+        .join("") +
+      "</div></section>";
+
+    html +=
+      '<section class="section"><button class="btn primary block" data-act="start-cards" data-course="' +
+      esc(course) +
+      '">Начать подход</button></section>';
+
+    view.innerHTML = html;
+  }
+
+  function renderCard() {
+    const s = cardSession;
+    const item = s.items[s.idx];
+    let html =
+      '<div class="quiz-top"><div class="progress"><span style="width:' +
+      Math.round((s.idx / s.total) * 100) +
+      '%"></span></div><span class="quiz-count">' +
+      (s.idx + 1) +
+      "/" +
+      s.total +
+      "</span></div>";
+
+    html +=
+      '<section class="question"><span class="q-kind">термин</span><h2>' +
+      esc(item.term) +
+      "</h2>" +
+      (item.full ? '<p class="muted small">' + esc(item.full) + "</p>" : "");
+
+    if (s.shown) {
+      html += '<p class="mt">' + esc(item.text) + "</p>";
+      html +=
+        '<div class="btn-row mt"><button class="btn primary" data-act="card-known">Вспомнил</button>' +
+        '<button class="btn" data-act="card-unknown">Не вспомнил</button></div>';
+    } else {
+      html += '<div class="btn-row mt"><button class="btn primary block" data-act="card-show">Показать определение</button></div>';
+    }
+    html += "</section>";
+    html += '<div class="btn-row mt"><button class="btn" data-act="card-quit">Прервать</button></div>';
+    view.innerHTML = html;
+  }
+
+  function answerCard(known) {
+    const s = cardSession;
+    const item = s.items[s.idx];
+    const cur = state.cards[item.term] || { box: 0 };
+    if (known) {
+      const box = Math.min(MISTAKE_HOURS.length - 1, (cur.box || 0) + 1);
+      state.cards[item.term] = { box: box, dueAt: Date.now() + MISTAKE_HOURS[box] * 3600000 };
+      s.known++;
+      if (state.terms.indexOf(item.term) < 0) state.terms.push(item.term);
+    } else {
+      state.cards[item.term] = { box: 0, dueAt: Date.now() + 4 * 3600000 };
+    }
+    s.idx++;
+    s.shown = false;
+    save();
+    if (s.idx >= s.items.length) renderCards();
+    else renderCard();
+  }
+
+  /* ================= тренажёр горячих клавиш ================= */
+
+  let drill = null;
+
+  function hotkeyPairs() {
+    const out = [];
+    CONTENT.courses.forEach((course) => {
+      course.lessons.forEach((l) => {
+        (l.blocks || []).forEach((b) => {
+          if (b.type !== "table" || !/клавиш|сочетани/i.test(b.title || "")) return;
+          (b.rows || []).forEach((r) => {
+            if (!r[0] || !r[1]) return;
+            // строки вида «MV / CO / RO» описывают сразу несколько команд — их пропускаем
+            if (String(r[0]).indexOf("/") >= 0) return;
+            out.push({ keys: String(r[0]), action: String(r[1]), course: course.title, courseId: course.id });
+          });
+        });
+      });
+    });
+    return out;
+  }
+
+  function startDrill(courseId) {
+    let pool = hotkeyPairs();
+    if (courseId && courseId !== "all") pool = pool.filter((p) => p.courseId === courseId);
+    if (pool.length < 4) return null;
+    const items = shuffle(pool).slice(0, 10).map((p) => {
+      const others = shuffle(pool.filter((x) => x.keys !== p.keys)).slice(0, 3);
+      const options = shuffle(others.concat([p]));
+      return { action: p.action, keys: p.keys, course: p.course, options: options.map((o) => o.keys) };
+    });
+    drill = { items: items, idx: 0, correct: 0, sel: null, startedAt: Date.now(), times: [] };
+    return drill;
+  }
+
+  function renderDrill(params) {
+    setTop("Тренажёр клавиш", "на скорость");
+
+    if (drill && drill.idx < drill.items.length) return renderDrillQuestion();
+
+    if (drill) {
+      const d = drill;
+      const total = Math.round((Date.now() - d.startedAt) / 1000);
+      const avg = d.times.length ? (d.times.reduce((a, b) => a + b, 0) / d.times.length / 1000).toFixed(1) : "0";
+      drill = null;
+      view.innerHTML =
+        '<section class="section"><div class="card"><h3>Результат</h3><p class="big">' +
+        d.correct +
+        " из " +
+        d.items.length +
+        '</p><p class="muted small">Всего ' +
+        total +
+        " с · в среднем " +
+        avg +
+        ' с на вопрос</p><div class="btn-row mt"><a class="btn primary" href="#/drill">Ещё раз</a><a class="btn" href="#/keys">Шпаргалки</a></div></div></section>';
+      return;
+    }
+
+    const pool = hotkeyPairs();
+    const byCourse = {};
+    pool.forEach((p) => {
+      byCourse[p.courseId] = (byCourse[p.courseId] || 0) + 1;
+    });
+    const course = (params && params.get("course")) || "all";
+
+    let html =
+      '<section class="section"><div class="card"><h3>Как это работает</h3><p>Показывается команда — выбираете сочетание клавиш. Засекается время: смысл не в том, чтобы угадать, а в том, чтобы отвечать не думая.</p>' +
+      '<p class="muted small mt">В базе ' +
+      pool.length +
+      " " +
+      plural(pool.length, "сочетание", "сочетания", "сочетаний") +
+      ", собраны из уроков.</p></div></section>";
+
+    html +=
+      '<section class="section"><div class="section-head"><h2>Программа</h2></div><div class="row row-wrap">' +
+      [{ id: "all", title: "Все" }]
+        .concat(CONTENT.courses.filter((c) => byCourse[c.id] >= 4).map((c) => ({ id: c.id, title: c.title })))
+        .map(
+          (c) =>
+            '<a class="chip' +
+            (course === c.id ? " accent" : "") +
+            '" href="#/drill?course=' +
+            c.id +
+            '">' +
+            esc(c.title) +
+            "</a>"
+        )
+        .join("") +
+      "</div></section>";
+
+    html +=
+      '<section class="section"><button class="btn primary block" data-act="start-drill" data-course="' +
+      esc(course) +
+      '">Начать · 10 вопросов</button></section>';
+
+    view.innerHTML = html;
+  }
+
+  function renderDrillQuestion() {
+    const d = drill;
+    const item = d.items[d.idx];
+    if (d.sel === null) d.shownAt = Date.now();
+
+    let html =
+      '<div class="quiz-top"><div class="progress"><span style="width:' +
+      Math.round((d.idx / d.items.length) * 100) +
+      '%"></span></div><span class="quiz-count">' +
+      (d.idx + 1) +
+      "/" +
+      d.items.length +
+      "</span></div>";
+
+    html +=
+      '<section class="question"><span class="q-kind">' +
+      esc(item.course) +
+      "</span><h2>" +
+      esc(item.action) +
+      '</h2><div class="options">' +
+      item.options
+        .map((o) => {
+          let cls = "option round";
+          if (d.sel !== null) {
+            if (o === item.keys) cls += " right";
+            else if (o === d.sel) cls += " wrong";
+          }
+          return (
+            '<button class="' +
+            cls +
+            '" data-act="drill-pick" data-k="' +
+            esc(o) +
+            '"' +
+            (d.sel !== null ? " disabled" : "") +
+            '><span class="mark">•</span><span>' +
+            esc(o) +
+            "</span></button>"
+          );
+        })
+        .join("") +
+      "</div>";
+
+    if (d.sel !== null) {
+      html +=
+        '<div class="btn-row mt"><button class="btn primary block" data-act="drill-next">' +
+        (d.idx + 1 >= d.items.length ? "Результат" : "Дальше →") +
+        "</button></div>";
+    }
+    html += "</section>";
+    html += '<div class="btn-row mt"><button class="btn" data-act="drill-quit">Прервать</button></div>';
+    view.innerHTML = html;
+  }
+
   /* ================= новости ================= */
 
   const NEWS = (CONTENT.news && CONTENT.news.sources) ? CONTENT.news : { sources: [], timeline: [] };
@@ -1782,7 +2335,15 @@
       '<a class="menu-item" href="#/bookmarks"><span class="mi-ico">★</span><span class="mi-body"><b>Закладки</b><span class="mi-sub">' +
       state.bookmarks.length +
       ' сохранённых уроков</span></span></a>' +
+      '<a class="menu-item" href="#/checks"><span class="mi-ico">✅</span><span class="mi-body"><b>Чек-листы</b><span class="mi-sub">старт проекта, выдача, приёмка от смежника</span></span></a>' +
+      '<a class="menu-item" href="#/warnings"><span class="mi-ico">⚠️</span><span class="mi-body"><b>Предупреждения Revit</b><span class="mi-sub">' +
+      WARNINGS.length +
+      " разборов: что значит и как чинить</span></span></a>" +
+      '<a class="menu-item" href="#/cards"><span class="mi-ico">🃏</span><span class="mi-body"><b>Карточки терминов</b><span class="mi-sub">' +
+      (dueCards().length ? dueCards().length + " к повтору" : "повторение по интервалам") +
+      "</span></span></a>" +
       '<a class="menu-item" href="#/keys"><span class="mi-ico">⌨️</span><span class="mi-body"><b>Горячие клавиши</b><span class="mi-sub">Revit, AutoCAD и другие</span></span></a>' +
+      '<a class="menu-item" href="#/drill"><span class="mi-ico">⚡</span><span class="mi-body"><b>Тренажёр клавиш</b><span class="mi-sub">на скорость, 10 вопросов</span></span></a>' +
       '<a class="menu-item" href="#/glossary"><span class="mi-ico">📖</span><span class="mi-body"><b>Глоссарий</b><span class="mi-sub">' +
       CONTENT.glossary.length +
       " терминов</span></span></a></section>";
@@ -2001,6 +2562,124 @@
       refreshFeed(params.get("region") || "ru", false);
       return;
     }
+    if (act === "add-project" || act === "new-project") {
+      const input = document.getElementById("projName");
+      if (!input) {
+        const name = prompt("Название проекта");
+        if (!name || !name.trim()) return;
+        if (state.checkProjects.some((p) => p.name.toLowerCase() === name.trim().toLowerCase())) {
+          return toast("Проект с таким названием уже есть");
+        }
+        const id = "p-" + Date.now();
+        state.checkProjects.push({ id: id, name: name.trim() });
+        state.checkCurrent = id;
+        save();
+        route();
+        return;
+      }
+      const name = input.value.trim();
+      if (!name) return toast("Введите название проекта");
+      if (state.checkProjects.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+        return toast("Проект с таким названием уже есть");
+      }
+      const id = "p-" + Date.now();
+      state.checkProjects.push({ id: id, name: name });
+      state.checkCurrent = id;
+      save();
+      toast("Проект создан");
+      route();
+      return;
+    }
+    if (act === "pick-project") {
+      state.checkCurrent = el.dataset.id;
+      save();
+      return;
+    }
+    if (act === "del-project") {
+      const p = currentProject();
+      if (!p) return;
+      if (!confirm("Удалить проект «" + p.name + "» вместе с отметками?")) return;
+      state.checkProjects = state.checkProjects.filter((x) => x.id !== p.id);
+      delete state.checkDone[p.id];
+      state.checkCurrent = state.checkProjects.length ? state.checkProjects[0].id : "";
+      save();
+      toast("Проект удалён");
+      route();
+      return;
+    }
+    if (act === "toggle-check") {
+      const p = currentProject();
+      if (!p) return;
+      const id = el.dataset.id;
+      state.checkDone[p.id] = state.checkDone[p.id] || {};
+      const on = !state.checkDone[p.id][id];
+      if (on) state.checkDone[p.id][id] = 1;
+      else delete state.checkDone[p.id][id];
+      save();
+      // Обновляем только то, что изменилось: полная перерисовка сбрасывала бы
+      // прокрутку в начало на каждой галочке.
+      el.classList.toggle("on", on);
+      updateCheckCounters();
+      return;
+    }
+    if (act === "reset-check") {
+      const p = currentProject();
+      if (!p) return;
+      const list = CHECKLISTS.filter((c) => c.id === el.dataset.id)[0];
+      if (!list) return;
+      if (!confirm("Снять все отметки в списке «" + list.title + "»?")) return;
+      const done = state.checkDone[p.id] || {};
+      checkItems(list).forEach((i) => delete done[i.id]);
+      save();
+      toast("Отметки сняты");
+      route();
+      return;
+    }
+    if (act === "start-cards") {
+      if (!startCards(el.dataset.course)) return toast("Все термины этого курса на повторении — вернитесь позже");
+      renderCard();
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (act === "card-show") {
+      cardSession.shown = true;
+      return renderCard();
+    }
+    if (act === "card-known") return answerCard(true);
+    if (act === "card-unknown") return answerCard(false);
+    if (act === "card-quit") {
+      cardSession = null;
+      location.hash = "#/more";
+      return;
+    }
+    if (act === "start-drill") {
+      if (!startDrill(el.dataset.course)) return toast("Для этой программы мало сочетаний в базе");
+      renderDrillQuestion();
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (act === "drill-pick") {
+      if (drill.sel !== null) return;
+      drill.sel = el.dataset.k;
+      drill.times.push(Date.now() - (drill.shownAt || Date.now()));
+      if (drill.sel === drill.items[drill.idx].keys) drill.correct++;
+      return renderDrillQuestion();
+    }
+    if (act === "drill-next") {
+      drill.idx++;
+      drill.sel = null;
+      if (drill.idx >= drill.items.length) {
+        state.xp += drill.correct * 2;
+        save();
+        return renderDrill();
+      }
+      return renderDrillQuestion();
+    }
+    if (act === "drill-quit") {
+      drill = null;
+      location.hash = "#/keys";
+      return;
+    }
     if (act === "test-feeds") {
       const val = document.getElementById("newsProxy").value.trim();
       if (val && !/^https?:\/\//i.test(val)) return toast("Адрес должен начинаться с http");
@@ -2194,6 +2873,18 @@
         break;
       case "news":
         renderNews(params);
+        break;
+      case "checks":
+        renderChecks(params);
+        break;
+      case "warnings":
+        renderWarnings(params);
+        break;
+      case "cards":
+        renderCards(params);
+        break;
+      case "drill":
+        renderDrill(params);
         break;
       case "bookmarks":
         renderBookmarks();

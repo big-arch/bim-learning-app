@@ -751,6 +751,25 @@ mark { background: color-mix(in srgb, var(--accent) 26%, transparent); color: in
 .menu-item .mi-body { flex: 1; min-width: 0; }
 .menu-item .mi-ico { font-size: 20px; }
 
+.check-row { text-align: left; cursor: pointer; }
+.check-row .cb {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  border: 1.5px solid var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.check-row.on { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.check-row.on .cb { background: var(--accent); border-color: var(--accent); color: #fff; }
+.check-row.on .mi-body b { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+
 .segmented { display: flex; gap: 6px; padding: 4px; border-radius: 14px; background: var(--bg-soft); }
 .segmented button {
   flex: 1;

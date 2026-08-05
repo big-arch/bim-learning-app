@@ -24,7 +24,9 @@ const files = [
   "data/course-software.js",
   "data/glossary.js",
   "data/videos.js",
-  "data/news.js"
+  "data/news.js",
+  "data/checklists.js",
+  "data/warnings.js"
 ];
 
 // Все ли файлы данных подключены в index.html и закэшированы service worker'ом.
@@ -132,6 +134,32 @@ news.timeline.forEach((t, i) => {
   if (!["ru", "world"].includes(t.region)) errors.push("хронология, запись " + (i + 1) + ": region должен быть ru или world");
 });
 
+const checklists = C.checklists || [];
+const seenItems = new Set();
+checklists.forEach((c) => {
+  if (!c.id || !c.title || !c.intro) errors.push("чек-лист " + (c.id || "?") + ": нет id, названия или описания");
+  if (!c.groups || !c.groups.length) errors.push("чек-лист " + c.id + ": нет групп пунктов");
+  (c.groups || []).forEach((g) => {
+    if (!g.title) errors.push("чек-лист " + c.id + ": группа без заголовка");
+    (g.items || []).forEach((i) => {
+      if (!i.id || !i.text) errors.push("чек-лист " + c.id + ": пункт без id или текста");
+      if (seenItems.has(i.id)) errors.push("чек-лист: дублируется id пункта " + i.id + " — отметки пользователей перепутаются");
+      seenItems.add(i.id);
+    });
+  });
+});
+
+const warnings = C.warnings || [];
+const seenWarn = new Set();
+warnings.forEach((w) => {
+  if (seenWarn.has(w.id)) errors.push("предупреждение: дублируется id " + w.id);
+  seenWarn.add(w.id);
+  if (!w.en || !w.ru || !w.why) errors.push("предупреждение " + w.id + ": нет текста, описания или последствий");
+  if (!Array.isArray(w.fix) || !w.fix.length) errors.push("предупреждение " + w.id + ": нет шагов исправления");
+  if (!["warn", "error"].includes(w.kind)) errors.push("предупреждение " + w.id + ": kind должен быть warn или error");
+  if (w.lesson && !lessonIds.has(w.lesson)) errors.push("предупреждение " + w.id + ": ссылка на несуществующий урок " + w.lesson);
+});
+
 const lessons = C.courses.reduce((a, c) => a + c.lessons.length, 0);
 const questions = C.courses.reduce((a, c) => a + c.lessons.reduce((b, l) => b + l.questions.length, 0), 0);
 
@@ -142,7 +170,9 @@ console.log(
   " | терминов: " + C.glossary.length +
   " | видео: " + C.videos.length +
   " | схем: " + figures.size +
-  " | источников новостей: " + news.sources.length
+  " | источников новостей: " + news.sources.length +
+  " | пунктов чек-листов: " + seenItems.size +
+  " | предупреждений: " + warnings.length
 );
 
 if (orphanTerms.size) {
