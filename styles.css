@@ -401,6 +401,40 @@ html[data-theme="dark"] .ico-moon { display: block; }
   border-color: transparent;
   color: #fff;
 }
+/* Пройденный урок видно с одного взгляда: тёплая заливка и зелёная кромка слева. */
+.lesson.is-done {
+  background: color-mix(in srgb, var(--ok) 9%, var(--surface));
+  border-color: color-mix(in srgb, var(--ok) 32%, var(--border));
+}
+.lesson.is-done::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--ok);
+}
+.lesson { position: relative; overflow: hidden; }
+.lesson-done-tag { color: var(--ok); font-weight: 600; }
+
+/* Полностью пройденный курс помечается в списке курсов. */
+.course-card.is-done { border-color: color-mix(in srgb, var(--ok) 40%, var(--border)); }
+.course-card .cc-done {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--ok);
+  font-size: 11.5px;
+  font-weight: 700;
+}
 .lesson-body { flex: 1; min-width: 0; }
 .lesson-body b { display: block; font-size: 15px; font-weight: 600; }
 .lesson-body span { display: block; color: var(--muted); font-size: 12.5px; }

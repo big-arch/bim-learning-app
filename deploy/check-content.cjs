@@ -26,7 +26,8 @@ const files = [
   "data/videos.js",
   "data/news.js",
   "data/checklists.js",
-  "data/warnings.js"
+  "data/warnings.js",
+  "data/questions-extra.js"
 ];
 
 // Все ли файлы данных подключены в index.html и закэшированы service worker'ом.
@@ -42,6 +43,17 @@ files.forEach((f) => {
 });
 
 const C = global.window.BIM_CONTENT;
+const EXTRA_Q = global.window.BIM_EXTRA_QUESTIONS || {};
+const lessonIdSet = new Set();
+C.courses.forEach((c) => c.lessons.forEach((l) => lessonIdSet.add(l.id)));
+Object.keys(EXTRA_Q).forEach((k) => {
+  if (!lessonIdSet.has(k)) errors.push("дополнительные вопросы: нет урока " + k);
+});
+C.courses.forEach((c) =>
+  c.lessons.forEach((l) => {
+    if (EXTRA_Q[l.id]) l.questions = (l.questions || []).concat(EXTRA_Q[l.id]);
+  })
+);
 const F = global.window.BIM_FIGURES || {};
 const figures = new Set(Object.keys(F));
 const courseIds = new Set(C.courses.map((c) => c.id));
@@ -55,6 +67,7 @@ C.courses.forEach((course) => {
     lessonIds.add(tag);
     if (!lesson.title) errors.push(tag + ": нет заголовка");
     if (!lesson.goal) errors.push(tag + ": нет цели урока");
+    if (lesson.questions.length < 6) errors.push(tag + ": вопросов меньше шести (" + lesson.questions.length + ")");
 
     (lesson.blocks || []).forEach((b) => {
       if (b.type === "figure" && !figures.has(b.figure)) {

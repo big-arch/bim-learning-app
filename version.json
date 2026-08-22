@@ -1,6 +1,6 @@
 {
   "app": "BIM Academy",
-  "version": "2026-08-03-v7",
+  "version": "2026-08-04-v8",
   "features": [
     "courses-bim-revit-navisworks-autocad-civil3d",
     "course-practice-real-project-questions",
@@ -15,6 +15,9 @@
     "revit-warnings-reference",
     "glossary-flashcards-spaced-repetition",
     "hotkey-drill",
+    "news-digest",
+    "completed-lessons-highlighted",
+    "extra-question-bank",
     "lessons-with-svg-diagrams",
     "quiz-single-multi-bool-input",
     "course-exam-and-mistake-review",

@@ -174,9 +174,14 @@
   const allQuestions = [];
   const allLessons = [];
 
+  // Дополнительный банк вопросов из data/questions-extra.js прирастает к урокам
+  // до того, как им раздаются идентификаторы. Туда же удобно дописывать свои.
+  const EXTRA_Q = window.BIM_EXTRA_QUESTIONS || {};
+
   CONTENT.courses.forEach((course) => {
     courseById[course.id] = course;
     course.lessons.forEach((lesson, li) => {
+      if (EXTRA_Q[lesson.id]) lesson.questions = (lesson.questions || []).concat(EXTRA_Q[lesson.id]);
       lessonById[lesson.id] = lesson;
       lessonCourse[lesson.id] = course.id;
       lesson.index = li;
@@ -234,6 +239,16 @@
       href: "#/warnings?q=" + encodeURIComponent(w.ru.slice(0, 30)),
       hay: norm(w.ru + " " + w.en + " " + w.why + " " + w.fix.join(" ") + " " + (w.tags || []).join(" ")),
       course: "revit"
+    });
+  });
+  ((CONTENT.news && CONTENT.news.digest) || []).forEach((d) => {
+    searchIndex.push({
+      kind: "Дайджест",
+      title: d.title,
+      sub: d.lead,
+      href: "#/news?tab=digest&region=" + d.region,
+      hay: norm(d.title + " " + d.lead + " " + d.points.join(" ") + " " + d.soWhat + " " + d.tag),
+      course: "manager"
     });
   });
   (CONTENT.checklists || []).forEach((c) => {
@@ -369,11 +384,15 @@
   function courseCard(course) {
     const p = courseProgress(course);
     return (
-      '<a class="course-card" href="#/course/' +
+      '<a class="course-card' +
+      (p.pct === 100 ? " is-done" : "") +
+      '" href="#/course/' +
       course.id +
       '" style="--accent:' +
       course.accent +
-      '"><div class="cc-head">' +
+      '">' +
+      (p.pct === 100 ? '<span class="cc-done">✓ пройден</span>' : "") +
+      '<div class="cc-head">' +
       courseIcon(course) +
       "<div><h3>" +
       esc(course.title) +
@@ -417,6 +436,7 @@
       qn +
       " " +
       plural(qn, "вопрос", "вопроса", "вопросов") +
+      (done ? ' · <span class="lesson-done-tag">пройдено</span>' : "") +
       '</span></div><div class="lesson-arrow"><svg viewBox="0 0 24 24">' +
       ICONS.arrow +
       "</svg></div></a>"
@@ -2139,84 +2159,142 @@
     );
   }
 
+  function digestCard(d) {
+    const lesson = lessonById[d.lesson];
+    return (
+      '<details class="term digest" data-term="' +
+      esc(d.id) +
+      '"><summary><span class="chip accent">' +
+      esc(d.tag) +
+      "</span> " +
+      esc(d.title) +
+      '</summary><div class="term-body">' +
+      "<p><b>" +
+      esc(d.lead) +
+      "</b></p><ul>" +
+      d.points.map((p) => "<li>" + esc(p) + "</li>").join("") +
+      "</ul>" +
+      '<div class="note tip"><b>Что это значит для вас</b><p>' +
+      esc(d.soWhat) +
+      "</p></div>" +
+      (lesson ? '<a class="btn small soft mt" href="#/lesson/' + d.lesson + '">Разобрать: ' + esc(lesson.title) + "</a>" : "") +
+      "</div></details>"
+    );
+  }
+
   function renderNews(params) {
-    setTop("Новости BIM", "источники и хронология");
+    const tab = (params && params.get("tab")) || "digest";
     const region = (params && params.get("region")) || "ru";
-    const sources = allSources().filter((s) => s.region === region);
-    const timeline = (NEWS.timeline || []).filter((t) => t.region === region).slice().reverse();
-    const cache = readNewsCache();
+    setTop(
+      "Новости BIM",
+      tab === "digest" ? "дайджест отрасли" : tab === "feed" ? "живая лента" : "источники и хронология"
+    );
+
+    const link = (t, r) => "#/news?tab=" + t + "&region=" + (r || region);
 
     let html =
       '<div class="row row-wrap mb">' +
-      [["ru", "Россия"], ["world", "Мир"]]
+      [["digest", "Дайджест"], ["feed", "Лента"], ["sources", "Источники"]]
         .map(
-          (r) =>
-            '<a class="chip' +
-            (region === r[0] ? " accent" : "") +
-            '" href="#/news?region=' +
-            r[0] +
-            '">' +
-            r[1] +
-            "</a>"
+          (t) =>
+            '<a class="chip' + (tab === t[0] ? " accent" : "") + '" href="' + link(t[0]) + '">' + t[1] + "</a>"
         )
         .join("") +
       "</div>";
 
-    // Живая лента: показывается, только если настроен прокси и есть ленты.
-    html += '<section class="section"><div class="section-head"><h2>Лента</h2>';
-    if (feedSources().length) html += '<button class="btn small" data-act="news-refresh">Обновить</button>';
-    html += "</div><div id=\"newsFeed\">";
-    if (!feedSources().length) {
+    if (tab !== "feed") {
       html +=
-        '<div class="note tip"><b>Лента не настроена</b><p>В каталоге ниже пока нет источников с RSS. Добавьте свой источник вместе со ссылкой на ленту — и свежие заголовки появятся здесь. Если лента лежит на чужом сайте, дополнительно понадобится прокси: он настраивается в «Ещё» → «Новости».</p></div>';
-    } else if (cache && cache.items && cache.items.length) {
-      html += feedListHtml(cache.items.filter((i) => i.region === region), cache.fetchedAt) + feedStatusHtml(cache.perSource);
-    } else {
-      html += '<p class="muted small">Загружаю…</p>';
+        '<div class="row row-wrap mb">' +
+        [["ru", "Россия"], ["world", "Мир"]]
+          .map(
+            (r) =>
+              '<a class="chip' + (region === r[0] ? " accent" : "") + '" href="' + link(tab, r[0]) + '">' + r[1] + "</a>"
+          )
+          .join("") +
+        "</div>";
     }
-    html += "</div></section>";
 
-    html +=
-      '<section class="section"><div class="section-head"><h2>Где смотреть</h2><span class="muted small">' +
-      sources.length +
-      "</span></div>";
-    if (!sources.length) html += '<div class="empty"><span class="em">📰</span>Источников пока нет</div>';
-    sources.forEach((s) => {
-      html += newsSourceCard(s);
-    });
-    html += "</section>";
+    if (tab === "digest") {
+      const items = (NEWS.digest || []).filter((d) => d.region === region);
+      html +=
+        '<section class="section"><div class="card"><h3>Что происходит в отрасли</h3>' +
+        '<p>Не лента заголовков, а разбор тем, которые определяют работу прямо сейчас. По каждой — что происходит и что из этого следует лично для вас.</p>' +
+        '<p class="muted small mt">Обзор составлен: ' +
+        esc(NEWS.digestUpdated || "—") +
+        ". Свежие заголовки — во вкладке «Лента».</p></div></section>";
 
-    if (timeline.length) {
-      html += '<section class="section"><div class="section-head"><h2>Как мы сюда пришли</h2></div>';
-      timeline.forEach((t) => {
-        html +=
-          '<div class="card mb"><div class="row"><span class="chip accent">' +
-          esc(t.year) +
-          "</span></div><h3>" +
-          esc(t.title) +
-          "</h3><p>" +
-          esc(t.text) +
-          "</p></div>";
+      html +=
+        '<section class="section"><div class="section-head"><h2>Темы</h2><span class="muted small">' +
+        items.length +
+        "</span></div>";
+      if (!items.length) html += '<div class="empty"><span class="em">📰</span>Тем пока нет</div>';
+      items.forEach((d) => {
+        html += digestCard(d);
       });
-      html +=
-        '<div class="note warn"><b>Это ориентиры, а не выписка из реестра</b><p>Номера документов и даты вступления требований в силу меняются, часть документов существует в виде проектов. Перед тем как ссылаться на них в договоре или в переписке с заказчиком, сверьтесь с действующей редакцией в официальном источнике.</p></div>';
       html += "</section>";
+
+      const timeline = (NEWS.timeline || []).filter((t) => t.region === region).slice().reverse();
+      if (timeline.length) {
+        html += '<section class="section"><div class="section-head"><h2>Как мы сюда пришли</h2></div>';
+        timeline.forEach((t) => {
+          html +=
+            '<div class="card mb"><div class="row"><span class="chip accent">' +
+            esc(t.year) +
+            "</span></div><h3>" +
+            esc(t.title) +
+            "</h3><p>" +
+            esc(t.text) +
+            "</p></div>";
+        });
+        html +=
+          '<div class="note warn"><b>Это ориентиры, а не выписка из реестра</b><p>Номера документов и даты вступления требований в силу меняются, часть документов существует в виде проектов. Перед тем как ссылаться на них в договоре или в переписке с заказчиком, сверьтесь с действующей редакцией в официальном источнике.</p></div>';
+        html += "</section>";
+      }
     }
 
-    html +=
-      '<section class="section"><details class="term"><summary>➕ Добавить свой источник</summary><div class="term-body">' +
-      '<input class="answer-input" id="srcTitle" type="text" placeholder="Название" />' +
-      '<input class="answer-input mt" id="srcUrl" type="url" placeholder="Ссылка на сайт (https://...)" />' +
-      '<input class="answer-input mt" id="srcFeed" type="url" placeholder="Ссылка на RSS — необязательно" />' +
-      '<select class="answer-input mt" id="srcRegion"><option value="ru">Россия</option><option value="world">Мир</option></select>' +
-      '<button class="btn primary block mt" data-act="add-source">Сохранить</button>' +
-      '<p class="muted small mt">Источник сохранится только на этом устройстве и попадёт в экспорт прогресса.</p>' +
-      "</div></details></section>";
+    if (tab === "feed") {
+      const cache = readNewsCache();
+      html += '<section class="section"><div class="section-head"><h2>Свежие заголовки</h2>';
+      if (feedSources().length) html += '<button class="btn small" data-act="news-refresh">Обновить</button>';
+      html += '</div><div id="newsFeed">';
+      if (!feedSources().length) {
+        html +=
+          '<div class="note tip"><b>Лента не настроена</b><p>Ни у одного источника не указан адрес RSS. Добавьте источник со ссылкой на ленту во вкладке «Источники» — и свежие заголовки появятся здесь. Для лент с чужих сайтов дополнительно нужен прокси: он настраивается в «Ещё» → «Новости».</p>' +
+          '<p class="mt">Пока лента не настроена, вкладка «Дайджест» даёт разбор того, что происходит в отрасли — она работает офлайн.</p></div>';
+      } else if (cache && cache.items && cache.items.length) {
+        html += feedListHtml(cache.items, cache.fetchedAt) + feedStatusHtml(cache.perSource);
+      } else {
+        html += '<p class="muted small">Загружаю…</p>';
+      }
+      html += "</div></section>";
+    }
+
+    if (tab === "sources") {
+      const sources = allSources().filter((s) => s.region === region);
+      html +=
+        '<section class="section"><div class="section-head"><h2>Где смотреть</h2><span class="muted small">' +
+        sources.length +
+        "</span></div>";
+      if (!sources.length) html += '<div class="empty"><span class="em">📰</span>Источников пока нет</div>';
+      sources.forEach((s) => {
+        html += newsSourceCard(s);
+      });
+      html += "</section>";
+
+      html +=
+        '<section class="section"><details class="term"><summary>➕ Добавить свой источник</summary><div class="term-body">' +
+        '<input class="answer-input" id="srcTitle" type="text" placeholder="Название" />' +
+        '<input class="answer-input mt" id="srcUrl" type="url" placeholder="Ссылка на сайт (https://...)" />' +
+        '<input class="answer-input mt" id="srcFeed" type="url" placeholder="Ссылка на RSS — необязательно" />' +
+        '<select class="answer-input mt" id="srcRegion"><option value="ru">Россия</option><option value="world">Мир</option></select>' +
+        '<button class="btn primary block mt" data-act="add-source">Сохранить</button>' +
+        '<p class="muted small mt">Источник сохранится только на этом устройстве и попадёт в экспорт прогресса.</p>' +
+        "</div></details></section>";
+    }
 
     view.innerHTML = html;
 
-    // Подгружаем ленту после отрисовки, чтобы не задерживать экран.
-    if (feedSources().length) refreshFeed(region, !cache);
+    if (tab === "feed" && feedSources().length) refreshFeed(region, !readNewsCache());
   }
 
   function feedListHtml(items, fetchedAt) {
@@ -2260,9 +2338,7 @@
             feedStatusHtml(data.perSource);
           return;
         }
-        target.innerHTML =
-          feedListHtml(data.items.filter((i) => i.region === region), data.fetchedAt) +
-          feedStatusHtml(data.perSource);
+        target.innerHTML = feedListHtml(data.items, data.fetchedAt) + feedStatusHtml(data.perSource);
         if (!silent) toast("Лента обновлена");
       })
       .catch(() => {
