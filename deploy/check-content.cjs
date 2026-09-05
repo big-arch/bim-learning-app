@@ -21,6 +21,7 @@ const files = [
   "data/course-civil3d.js",
   "data/course-practice.js",
   "data/course-manager.js",
+  "data/course-revit-server.js",
   "data/course-software.js",
   "data/glossary.js",
   "data/videos.js",

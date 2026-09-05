@@ -1,7 +1,8 @@
 {
   "app": "BIM Academy",
-  "version": "2026-08-24-v9",
+  "version": "2026-09-05-v10",
   "features": [
+    "course-revit-server",
     "pyrevit-plugins-topic",
     "revitlookup-lesson",
     "courses-bim-revit-navisworks-autocad-civil3d",

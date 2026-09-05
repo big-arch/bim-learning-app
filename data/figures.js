@@ -826,5 +826,224 @@ window.BIM_FIGURES = {
   <text class="f-dim f-center" x="528" y="216">терминология</text>
   <text class="f-accent-txt" x="16" y="258">EIR говорит «что нужно», IDS делает это машинно проверяемым,</text>
   <text class="f-dim" x="16" y="282">BEP описывает «как мы это сделаем». Не путайте документ и формат.</text>
+</svg>`,
+
+  "rs-architecture": `
+<svg viewBox="0 0 640 320" role="img" aria-label="Архитектура Revit Server: хост, ускорители и рабочие места">
+  <rect class="f-fill" x="215" y="14" width="210" height="76" rx="14"/>
+  <path class="f-accent" d="M215 14h210v76H215z"/>
+  <text class="f-txt f-center" x="320" y="42">Host — хост</text>
+  <text class="f-dim f-center" x="320" y="62">единственное место,</text>
+  <text class="f-dim f-center" x="320" y="78">где лежат модели</text>
+
+  <rect class="f-box" x="24" y="140" width="200" height="70" rx="12"/>
+  <text class="f-txt f-center" x="124" y="166">Accelerator</text>
+  <text class="f-dim f-center" x="124" y="186">филиал «Восток»</text>
+  <text class="f-dim f-center" x="124" y="202">кэш, не хранилище</text>
+
+  <rect class="f-box" x="416" y="140" width="200" height="70" rx="12"/>
+  <text class="f-txt f-center" x="516" y="166">Accelerator</text>
+  <text class="f-dim f-center" x="516" y="186">филиал «Запад»</text>
+  <text class="f-dim f-center" x="516" y="202">кэш, не хранилище</text>
+
+  <rect class="f-box" x="24" y="238" width="200" height="62" rx="12"/>
+  <text class="f-dim f-center" x="124" y="264">рабочие места</text>
+  <text class="f-dim f-center" x="124" y="284">локальные копии</text>
+
+  <rect class="f-box" x="240" y="238" width="160" height="62" rx="12"/>
+  <text class="f-dim f-center" x="320" y="264">офис хоста</text>
+  <text class="f-dim f-center" x="320" y="284">работает напрямую</text>
+
+  <rect class="f-box" x="416" y="238" width="200" height="62" rx="12"/>
+  <text class="f-dim f-center" x="516" y="264">рабочие места</text>
+  <text class="f-dim f-center" x="516" y="284">локальные копии</text>
+
+  <path class="f-arrow" d="M255 76q-90 20-131 60"/>
+  <path class="f-arrow" d="M385 76q90 20 131 60"/>
+  <path class="f-arrow" d="M320 90v144"/>
+  <path class="f-arrow" d="M124 210v24"/>
+  <path class="f-arrow" d="M516 210v24"/>
+  <text class="f-dim f-center" x="152" y="118">WAN / VPN</text>
+  <text class="f-dim f-center" x="492" y="118">WAN / VPN</text>
+</svg>`,
+
+  "rs-install-steps": `
+<svg viewBox="0 0 640 300" role="img" aria-label="Порядок установки и запуска Revit Server">
+  <rect class="f-box" x="16" y="18" width="290" height="56" rx="10"/>
+  <circle class="f-dot" cx="42" cy="46" r="12"/>
+  <text class="f-txt" x="66" y="42">1. Сервер и роль IIS</text>
+  <text class="f-dim" x="66" y="62">Windows Server, веб-сервер, .NET</text>
+
+  <rect class="f-box" x="16" y="86" width="290" height="56" rx="10"/>
+  <circle class="f-dot" cx="42" cy="114" r="12"/>
+  <text class="f-txt" x="66" y="110">2. Установка Revit Server</text>
+  <text class="f-dim" x="66" y="130">роль Host + папка данных</text>
+
+  <rect class="f-box" x="16" y="154" width="290" height="56" rx="10"/>
+  <circle class="f-dot" cx="42" cy="182" r="12"/>
+  <text class="f-txt" x="66" y="178">3. Accelerator в филиалах</text>
+  <text class="f-dim" x="66" y="198">по одному на удалённый офис</text>
+
+  <rect class="f-box" x="16" y="222" width="290" height="56" rx="10"/>
+  <circle class="f-dot" cx="42" cy="250" r="12"/>
+  <text class="f-txt" x="66" y="246">4. Проверка Administrator</text>
+  <text class="f-dim" x="66" y="266">браузер открывает панель</text>
+
+  <rect class="f-box" x="334" y="18" width="290" height="56" rx="10"/>
+  <circle class="f-dot" cx="360" cy="46" r="12"/>
+  <text class="f-txt" x="384" y="42">5. RSN.ini на клиентах</text>
+  <text class="f-dim" x="384" y="62">без него сервера не видно</text>
+
+  <rect class="f-box" x="334" y="86" width="290" height="56" rx="10"/>
+  <circle class="f-dot" cx="360" cy="114" r="12"/>
+  <text class="f-txt" x="384" y="110">6. Структура папок проектов</text>
+  <text class="f-dim" x="384" y="130">создаётся в Administrator</text>
+
+  <rect class="f-box" x="334" y="154" width="290" height="56" rx="10"/>
+  <circle class="f-dot" cx="360" cy="182" r="12"/>
+  <text class="f-txt" x="384" y="178">7. Первая центральная модель</text>
+  <text class="f-dim" x="384" y="198">Revit → Сохранить как → сервер</text>
+
+  <rect class="f-fill" x="334" y="222" width="290" height="56" rx="10"/>
+  <path class="f-accent" d="M334 222h290v56H334z"/>
+  <text class="f-txt" x="384" y="246">8. Бэкап и регламент</text>
+  <text class="f-dim" x="384" y="266">до начала работы, а не после</text>
+</svg>`,
+
+  "rs-data-path": `
+<svg viewBox="0 0 640 250" role="img" aria-label="Путь данных от центральной модели до рабочего места">
+  <rect class="f-fill" x="16" y="90" width="150" height="70" rx="12"/>
+  <path class="f-accent" d="M16 90h150v70H16z"/>
+  <text class="f-txt f-center" x="91" y="118">Хост</text>
+  <text class="f-dim f-center" x="91" y="140">центральная модель</text>
+
+  <rect class="f-box" x="205" y="90" width="150" height="70" rx="12"/>
+  <text class="f-txt f-center" x="280" y="118">Accelerator</text>
+  <text class="f-dim f-center" x="280" y="140">кэш филиала</text>
+
+  <rect class="f-box" x="394" y="90" width="150" height="70" rx="12"/>
+  <text class="f-txt f-center" x="469" y="118">Локальный кэш</text>
+  <text class="f-dim f-center" x="469" y="140">CollaborationCache</text>
+
+  <rect class="f-box" x="394" y="14" width="230" height="56" rx="12"/>
+  <text class="f-txt f-center" x="509" y="40">Revit на рабочем месте</text>
+  <text class="f-dim f-center" x="509" y="58">вы работаете здесь</text>
+
+  <path class="f-arrow" d="M166 112h35"/>
+  <path class="f-arrow" d="M355 112h35"/>
+  <path class="f-arrow" d="M469 90V72"/>
+  <path class="f-arrow" d="M509 160q-120 40-350 8"/>
+  <text class="f-dim f-center" x="330" y="212">Синхронизация возвращает изменения на хост — только он источник истины</text>
+  <text class="f-accent-txt f-center" x="330" y="238">Копировать модели через Проводник нельзя: это папка данных, а не файл</text>
+</svg>`,
+
+  "rs-choice": `
+<svg viewBox="0 0 640 260" role="img" aria-label="Выбор способа совместной работы">
+  <rect class="f-box" x="16" y="20" width="190" height="110" rx="12"/>
+  <text class="f-txt f-center" x="111" y="48">Общая папка</text>
+  <text class="f-dim f-center" x="111" y="72">один офис,</text>
+  <text class="f-dim f-center" x="111" y="90">быстрая локальная сеть</text>
+  <text class="f-dim f-center" x="111" y="114">дёшево и просто</text>
+
+  <rect class="f-fill" x="225" y="20" width="190" height="110" rx="12"/>
+  <path class="f-accent" d="M225 20h190v110H225z"/>
+  <text class="f-txt f-center" x="320" y="48">Revit Server</text>
+  <text class="f-dim f-center" x="320" y="72">несколько офисов,</text>
+  <text class="f-dim f-center" x="320" y="90">свой сервер и ИТ-служба</text>
+  <text class="f-dim f-center" x="320" y="114">данные остаются у вас</text>
+
+  <rect class="f-box" x="434" y="20" width="190" height="110" rx="12"/>
+  <text class="f-txt f-center" x="529" y="48">Облако</text>
+  <text class="f-dim f-center" x="529" y="72">команда без своей</text>
+  <text class="f-dim f-center" x="529" y="90">серверной</text>
+  <text class="f-dim f-center" x="529" y="114">подписка и доступность</text>
+
+  <text class="f-title" x="16" y="168">Решает не мода, а три вопроса</text>
+  <text class="f-dim" x="16" y="194">1. Работают ли люди в разных городах — или все в одной сети?</text>
+  <text class="f-dim" x="16" y="216">2. Есть ли кому администрировать сервер и делать бэкапы?</text>
+  <text class="f-dim" x="16" y="238">3. Что с версией Revit и доступностью облака в вашей ситуации?</text>
+</svg>`,
+
+  "rs-network": `
+<svg viewBox="0 0 640 270" role="img" aria-label="Сетевой контур Revit Server">
+  <rect class="f-box" x="16" y="20" width="380" height="180" rx="14"/>
+  <text class="f-title" x="36" y="46">Закрытый сегмент сети компании</text>
+
+  <rect class="f-fill" x="44" y="66" width="150" height="66" rx="12"/>
+  <path class="f-accent" d="M44 66h150v66H44z"/>
+  <text class="f-txt f-center" x="119" y="94">Хост</text>
+  <text class="f-dim f-center" x="119" y="114">модели и данные</text>
+
+  <rect class="f-box" x="220" y="66" width="150" height="66" rx="12"/>
+  <text class="f-txt f-center" x="295" y="94">Ускоритель</text>
+  <text class="f-dim f-center" x="295" y="114">офис хоста</text>
+
+  <text class="f-dim" x="44" y="160">Нет своих логинов и паролей:</text>
+  <text class="f-dim" x="44" y="180">кто дотянулся по сети — тот и работает</text>
+
+  <rect class="f-box" x="430" y="46" width="194" height="60" rx="12"/>
+  <text class="f-txt f-center" x="527" y="72">Филиал</text>
+  <text class="f-dim f-center" x="527" y="92">свой ускоритель</text>
+
+  <rect class="f-box" x="430" y="128" width="194" height="60" rx="12"/>
+  <text class="f-txt f-center" x="527" y="154">Удалённый сотрудник</text>
+  <text class="f-dim f-center" x="527" y="174">только через VPN</text>
+
+  <path class="f-arrow" d="M396 78h30"/>
+  <path class="f-arrow" d="M396 158h30"/>
+  <text class="f-accent-txt f-center" x="320" y="238">Наружу сервер не публикуют: разграничение доступа делает сеть, а не Revit Server</text>
+</svg>`,
+
+  "rs-backup": `
+<svg viewBox="0 0 640 260" role="img" aria-label="Два вида резервных копий Revit Server">
+  <rect class="f-fill" x="240" y="14" width="160" height="60" rx="12"/>
+  <path class="f-accent" d="M240 14h160v60H240z"/>
+  <text class="f-txt f-center" x="320" y="40">Хост</text>
+  <text class="f-dim f-center" x="320" y="60">папка данных</text>
+
+  <rect class="f-box" x="24" y="122" width="264" height="94" rx="12"/>
+  <text class="f-txt f-center" x="156" y="150">Копия папки данных</text>
+  <text class="f-dim f-center" x="156" y="172">быстро, но разворачивается</text>
+  <text class="f-dim f-center" x="156" y="190">только на такой же сервер</text>
+  <text class="f-dim f-center" x="156" y="208">и требует окна простоя</text>
+
+  <rect class="f-box" x="352" y="122" width="264" height="94" rx="12"/>
+  <text class="f-txt f-center" x="484" y="150">Выгрузка в файлы .rvt</text>
+  <text class="f-dim f-center" x="484" y="172">дольше, зато открывается</text>
+  <text class="f-dim f-center" x="484" y="190">на любом компьютере</text>
+  <text class="f-dim f-center" x="484" y="208">и переживает смену версии</text>
+
+  <path class="f-arrow" d="M280 74q-90 14-124 44"/>
+  <path class="f-arrow" d="M360 74q90 14 124 44"/>
+  <text class="f-accent-txt f-center" x="320" y="246">Нужны обе: одна возвращает систему, другая — сами модели</text>
+</svg>`,
+
+  "rs-triage": `
+<svg viewBox="0 0 640 280" role="img" aria-label="Порядок диагностики отказов Revit Server">
+  <rect class="f-fill" x="200" y="14" width="240" height="56" rx="12"/>
+  <path class="f-accent" d="M200 14h240v56H200z"/>
+  <text class="f-txt f-center" x="320" y="40">Первый вопрос</text>
+  <text class="f-dim f-center" x="320" y="60">у одного человека или у всех?</text>
+
+  <rect class="f-box" x="16" y="130" width="192" height="104" rx="12"/>
+  <text class="f-txt f-center" x="112" y="158">У одного</text>
+  <text class="f-dim f-center" x="112" y="182">версия Revit,</text>
+  <text class="f-dim f-center" x="112" y="200">RSN.ini,</text>
+  <text class="f-dim f-center" x="112" y="218">локальный кэш</text>
+
+  <rect class="f-box" x="224" y="130" width="192" height="104" rx="12"/>
+  <text class="f-txt f-center" x="320" y="158">У всех в одном офисе</text>
+  <text class="f-dim f-center" x="320" y="186">ускоритель</text>
+  <text class="f-dim f-center" x="320" y="206">и канал до хоста</text>
+
+  <rect class="f-box" x="432" y="130" width="192" height="104" rx="12"/>
+  <text class="f-txt f-center" x="528" y="158">У всех везде</text>
+  <text class="f-dim f-center" x="528" y="186">службы, место на диске,</text>
+  <text class="f-dim f-center" x="528" y="206">панель администрирования</text>
+
+  <path class="f-arrow" d="M260 70q-80 20-148 56"/>
+  <path class="f-arrow" d="M320 70v56"/>
+  <path class="f-arrow" d="M380 70q80 20 148 56"/>
+  <text class="f-dim f-center" x="320" y="266">Действия наугад дороже получаса ожидания администратора</text>
 </svg>`
 };

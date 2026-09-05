@@ -84,6 +84,7 @@
     qa: '<path d="M9.2 9a2.8 2.8 0 115.3 1.3c-.5.9-1.6 1.3-2.1 2.1-.3.4-.4.8-.4 1.4"/><circle cx="12" cy="17.6" r="1.2"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/>',
     manage: '<circle cx="12" cy="5.5" r="2.5"/><circle cx="5.5" cy="17" r="2.5"/><circle cx="18.5" cy="17" r="2.5"/><path d="M12 8v3.5M12 11.5H5.5v3M12 11.5h6.5v3"/>',
     soft: '<rect x="3" y="4.5" width="18" height="13" rx="2"/><path d="M8 21h8M12 17.5V21"/><path d="M9.5 9L7.5 11l2 2M14.5 9l2 2-2 2"/>',
+    server: '<rect x="3.5" y="4" width="17" height="6.5" rx="1.8"/><rect x="3.5" y="13.5" width="17" height="6.5" rx="1.8"/><path d="M7 7.25h.01M7 16.75h.01"/><path d="M11 7.25h6M11 16.75h6"/>',
     news: '<path d="M4 5h13v14H5.5A1.5 1.5 0 014 17.5z"/><path d="M17 9h3v8.5a1.5 1.5 0 01-3 0z"/><path d="M7 8.5h7M7 12h7M7 15.5h4"/>',
     play: '<path d="M8 5l12 7-12 7z"/>',
     arrow: '<path d="M9 5l7 7-7 7"/>'
@@ -504,7 +505,7 @@
       actionTile("#/quiz/mix/10", "⚡", "Быстрый тест", "10 вопросов") +
       actionTile("#/quiz/mistakes/all", "🎯", "Мои ошибки", due ? due + " к повтору" : "всё закрыто") +
       actionTile("#/cards", "🃏", "Карточки", dueCards().length ? dueCards().length + " к повтору" : "термины") +
-      actionTile("#/checks", "✅", "Чек-листы", "старт, выдача, приёмка") +
+      actionTile("#/checks", "✅", "Чек-листы", "старт, выдача, приёмка, сервер") +
       "</div></section>";
 
     html +=
@@ -2411,7 +2412,7 @@
       '<a class="menu-item" href="#/bookmarks"><span class="mi-ico">★</span><span class="mi-body"><b>Закладки</b><span class="mi-sub">' +
       state.bookmarks.length +
       ' сохранённых уроков</span></span></a>' +
-      '<a class="menu-item" href="#/checks"><span class="mi-ico">✅</span><span class="mi-body"><b>Чек-листы</b><span class="mi-sub">старт проекта, выдача, приёмка от смежника</span></span></a>' +
+      '<a class="menu-item" href="#/checks"><span class="mi-ico">✅</span><span class="mi-body"><b>Чек-листы</b><span class="mi-sub">старт проекта, выдача, приёмка, запуск Revit Server</span></span></a>' +
       '<a class="menu-item" href="#/warnings"><span class="mi-ico">⚠️</span><span class="mi-body"><b>Предупреждения Revit</b><span class="mi-sub">' +
       WARNINGS.length +
       " разборов: что значит и как чинить</span></span></a>" +
