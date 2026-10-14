@@ -860,3 +860,137 @@ mark { background: color-mix(in srgb, var(--accent) 26%, transparent); color: in
   .view { padding-left: 24px; padding-right: 24px; }
   .hero { padding: 24px; }
 }
+
+/* ---------- Таблицы-карточки на телефоне ---------- */
+td:first-child { white-space: normal; min-width: 96px; }
+@media (max-width: 560px) {
+  th { white-space: normal; }
+  td { overflow-wrap: anywhere; }
+  .t-cards { border: 0; border-radius: 0; overflow: visible; }
+  .t-cards table, .t-cards tbody, .t-cards tr, .t-cards td { display: block; width: 100%; background: none; }
+  .t-cards thead { display: none; }
+  .t-cards tr {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 14px;
+  }
+  .t-cards tr + tr { margin-top: 8px; }
+  .t-cards td { border: 0; padding: 4px 0; min-width: 0; }
+  .t-cards td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1px;
+  }
+  .t-cards td:first-child { font-size: 15px; padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .t-cards td:first-child::before { display: none; }
+}
+
+/* ---------- Крупный просмотр схем ---------- */
+.figure .fig-box { position: relative; cursor: zoom-in; }
+.fig-zoom {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+  font-size: 16px;
+  pointer-events: none;
+}
+body.no-scroll { overflow: hidden; }
+.zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+}
+.zoom-bar { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding-bottom: 8px; }
+.zoom-bar .icon-btn { font-size: 20px; font-weight: 700; background: var(--surface); border: 1px solid var(--border); }
+.zoom-pct { min-width: 54px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); }
+.zoom-stage {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: safe center;
+}
+.zoom-inner { width: 100%; flex: none; padding: 12px; }
+.zoom-inner svg { width: 100%; height: auto; display: block; }
+.zoom-hint { margin: 8px 0 0; text-align: center; font-size: 12px; color: var(--muted); }
+
+/* ---------- Собеседование и таймеры ---------- */
+.quiz-timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.quiz-timer.low { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+.iv-row { display: grid; grid-template-columns: minmax(0, 1.2fr) 1fr auto; align-items: center; gap: 10px; font-size: 14px; }
+.iv-row + .iv-row { margin-top: 10px; }
+.iv-row .progress { margin: 0; }
+.iv-row b { font-variant-numeric: tabular-nums; }
+.hero h2 { position: relative; margin: 4px 0 6px; font-size: 19px; letter-spacing: -0.3px; }
+.hero p { position: relative; }
+.hero-kicker { position: relative; font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.85; }
+.big { margin: 0 0 4px; font-size: 34px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); }
+
+/* ---------- Игры ---------- */
+.match { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.match.wide { grid-template-columns: 0.75fr 1.25fr; }
+.m-col { display: grid; gap: 8px; align-content: start; }
+.m-cell {
+  min-height: 52px;
+  padding: 10px 11px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s, background 0.15s, border-color 0.15s, opacity 0.25s;
+}
+.m-cell:active { transform: scale(0.98); }
+.m-cell.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.m-cell.done { border-color: color-mix(in srgb, var(--ok) 40%, transparent); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); color: var(--muted); opacity: 0.55; cursor: default; }
+.m-cell.miss { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--surface)); animation: shake 0.35s; }
+.order-item .mark { font-size: 12px; font-weight: 800; }
+.option.wrong.order-item { animation: shake 0.35s; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.blitz-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.blitz-btns .btn { min-height: 56px; font-size: 16px; }
+.question.blitz h2 { min-height: 4.2em; }
+.question.flash-ok { animation: flashOk 0.4s; }
+.question.flash-no { animation: flashNo 0.4s; }
+@keyframes flashOk { from { box-shadow: 0 0 0 3px var(--ok); } to { box-shadow: var(--shadow-soft); } }
+@keyframes flashNo { from { box-shadow: 0 0 0 3px var(--bad); } to { box-shadow: var(--shadow-soft); } }
+@media (prefers-reduced-motion: reduce) {
+  .m-cell.miss, .option.wrong.order-item, .question.flash-ok, .question.flash-no { animation: none; }
+}

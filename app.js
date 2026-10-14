@@ -84,6 +84,7 @@
     qa: '<path d="M9.2 9a2.8 2.8 0 115.3 1.3c-.5.9-1.6 1.3-2.1 2.1-.3.4-.4.8-.4 1.4"/><circle cx="12" cy="17.6" r="1.2"/><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/>',
     manage: '<circle cx="12" cy="5.5" r="2.5"/><circle cx="5.5" cy="17" r="2.5"/><circle cx="18.5" cy="17" r="2.5"/><path d="M12 8v3.5M12 11.5H5.5v3M12 11.5h6.5v3"/>',
     soft: '<rect x="3" y="4.5" width="18" height="13" rx="2"/><path d="M8 21h8M12 17.5V21"/><path d="M9.5 9L7.5 11l2 2M14.5 9l2 2-2 2"/>',
+    lang: '<path d="M4 5h9M8.5 3v2M6 5c.6 3.2 2.6 5.8 5.5 7.2M11 5c-.6 3.2-2.6 5.8-5.5 7.2"/><path d="M12.5 21l4.25-10L21 21M14 17.5h5.5"/>',
     server: '<rect x="3.5" y="4" width="17" height="6.5" rx="1.8"/><rect x="3.5" y="13.5" width="17" height="6.5" rx="1.8"/><path d="M7 7.25h.01M7 16.75h.01"/><path d="M11 7.25h6M11 16.75h6"/>',
     news: '<path d="M4 5h13v14H5.5A1.5 1.5 0 014 17.5z"/><path d="M17 9h3v8.5a1.5 1.5 0 01-3 0z"/><path d="M7 8.5h7M7 12h7M7 15.5h4"/>',
     play: '<path d="M8 5l12 7-12 7z"/>',
@@ -110,7 +111,10 @@
     { id: "perfect", em: "💎", title: "Без ошибок", desc: "тест из 10+ вопросов на 100%", test: (s) => !!s.flags.perfect },
     { id: "streak", em: "🔥", title: "Неделя подряд", desc: "7 дней с выполненной целью", test: (s) => s.streak.best >= 7 },
     { id: "terms", em: "📖", title: "Знаток терминов", desc: "открыто 25 терминов", test: (s) => s.terms.length >= 25 },
-    { id: "fix", em: "🧹", title: "Работа над ошибками", desc: "пройден тест по ошибкам", test: (s) => !!s.flags.mistakes }
+    { id: "fix", em: "🧹", title: "Работа над ошибками", desc: "пройден тест по ошибкам", test: (s) => !!s.flags.mistakes },
+    { id: "gamer", em: "🎮", title: "Игрок", desc: "сыграно 10 игр", test: (s) => s.games.played >= 10 },
+    { id: "blitz", em: "⏱", title: "Блиц-мастер", desc: "15 верных за минуту в блице", test: (s) => Object.keys(s.games.blitzBest).some((k) => s.games.blitzBest[k] >= 15) },
+    { id: "interview", em: "💼", title: "Готов к собеседованию", desc: "собеседование на 80% и выше", test: (s) => s.games.interviewBest >= 80 }
   ];
 
   const MISTAKE_HOURS = [0, 8, 24, 72, 168];
@@ -136,6 +140,7 @@
     cards: {},
     terms: [],
     flags: {},
+    games: { played: 0, blitzBest: {}, matchBest: {}, orderSolved: 0, interviewBest: 0 },
     xp: 0,
     lastLesson: ""
   });
@@ -152,7 +157,8 @@
         answers: Object.assign(base.answers, parsed.answers),
         streak: Object.assign(base.streak, parsed.streak),
         settings: Object.assign(base.settings, parsed.settings),
-        flags: Object.assign(base.flags, parsed.flags)
+        flags: Object.assign(base.flags, parsed.flags),
+        games: Object.assign(base.games, parsed.games)
       });
     } catch (e) {
       return defaultState();
@@ -506,6 +512,8 @@
       actionTile("#/quiz/mistakes/all", "🎯", "Мои ошибки", due ? due + " к повтору" : "всё закрыто") +
       actionTile("#/cards", "🃏", "Карточки", dueCards().length ? dueCards().length + " к повтору" : "термины") +
       actionTile("#/checks", "✅", "Чек-листы", "старт, выдача, приёмка, сервер") +
+      actionTile("#/games", "🎮", "Игры", "пары, блиц, порядок шагов") +
+      actionTile("#/interview", "💼", "Собеседование", INTERVIEW_SIZE + " вопросов на время") +
       "</div></section>";
 
     html +=
@@ -738,20 +746,31 @@
         );
       case "figure":
         return (
-          '<figure class="figure"><div class="fig-box">' +
+          '<figure class="figure"><div class="fig-box" data-act="zoom-fig" data-fig="' +
+          esc(b.figure) +
+          '" role="button" tabindex="0" aria-label="Открыть схему крупно">' +
           (FIGURES[b.figure] || "") +
-          "</div>" +
+          '<span class="fig-zoom" aria-hidden="true">⤢</span></div>' +
           (b.caption ? "<figcaption>" + esc(b.caption) + "</figcaption>" : "") +
           "</figure>"
         );
       case "table":
+        // Таблицы из трёх и более столбцов на узком экране превращаются в карточки:
+        // подпись столбца берётся из data-label, поэтому ничего не обрезается.
         return (
           (b.title ? "<h4>" + esc(b.title) + "</h4>" : "") +
-          '<div class="table-wrap"><table><thead><tr>' +
+          '<div class="table-wrap' +
+          (b.head.length >= 3 ? " t-cards" : "") +
+          '"><table><thead><tr>' +
           b.head.map((h) => "<th>" + esc(h) + "</th>").join("") +
           "</tr></thead><tbody>" +
           b.rows
-            .map((r) => "<tr>" + r.map((c) => "<td>" + esc(c) + "</td>").join("") + "</tr>")
+            .map(
+              (r) =>
+                "<tr>" +
+                r.map((c, i) => '<td data-label="' + esc(b.head[i] || "") + '">' + esc(c) + "</td>").join("") +
+                "</tr>"
+            )
             .join("") +
           "</tbody></table></div>"
         );
@@ -778,6 +797,12 @@
       '<section class="section"><div class="section-head"><h2>Быстрый старт</h2></div>' +
       '<a class="menu-item" href="#/quiz/mix/10"><span class="mi-ico">⚡</span><span class="mi-body"><b>Случайные 10 вопросов</b><span class="mi-sub">по всем курсам</span></span></a>' +
       '<a class="menu-item" href="#/quiz/mix/25"><span class="mi-ico">🧩</span><span class="mi-body"><b>Большой тест · 25 вопросов</b><span class="mi-sub">проверка общей подготовки</span></span></a>' +
+      '<a class="menu-item" href="#/interview"><span class="mi-ico">💼</span><span class="mi-body"><b>Собеседование</b><span class="mi-sub">' +
+      INTERVIEW_SIZE +
+      " вопросов за " +
+      INTERVIEW_SECONDS / 60 +
+      ' минут, разбор по направлениям</span></span></a>' +
+      '<a class="menu-item" href="#/games"><span class="mi-ico">🎮</span><span class="mi-body"><b>Игры</b><span class="mi-sub">найди пару, блиц на минуту, собери порядок</span></span></a>' +
       '<a class="menu-item" href="#/quiz/mistakes/all"><span class="mi-ico">🎯</span><span class="mi-body"><b>Мои ошибки</b><span class="mi-sub">' +
       (mistakesTotal
         ? due
@@ -873,6 +898,16 @@
       items = shuffle(ids.map((id) => questionById[id])).slice(0, 15);
       title = "Работа над ошибками";
       modeName = "Ошибки";
+    } else if (mode === "interview") {
+      // Не больше трёх вопросов из одного курса — чтобы проверялась широта, а не одна тема.
+      const per = {};
+      shuffle(allQuestions.filter((q) => q.courseId !== "english")).forEach((q) => {
+        if (items.length >= INTERVIEW_SIZE || (per[q.courseId] || 0) >= 3) return;
+        per[q.courseId] = (per[q.courseId] || 0) + 1;
+        items.push(q);
+      });
+      title = "Собеседование";
+      modeName = "Собеседование";
     }
 
     if (!items.length) {
@@ -892,9 +927,111 @@
       checked: false,
       correct: 0,
       wrong: [],
-      startedAt: Date.now()
+      results: [],
+      startedAt: Date.now(),
+      deadline: mode === "interview" ? Date.now() + INTERVIEW_SECONDS * 1000 : 0
     };
     renderQuestion();
+    if (quiz.deadline) startQuizTimer();
+  }
+
+  /* ---- таймер собеседования ---- */
+
+  const INTERVIEW_SIZE = 15;
+  const INTERVIEW_SECONDS = 600;
+  let quizTimer = null;
+
+  const fmtTime = (sec) => {
+    const s = Math.max(0, Math.ceil(sec));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  };
+
+  function startQuizTimer() {
+    clearInterval(quizTimer);
+    quizTimer = setInterval(() => {
+      // Ушли со страницы теста — собеседование считается прерванным.
+      if (!quiz || !quiz.deadline || location.hash.indexOf("#/quiz/interview") !== 0) {
+        clearInterval(quizTimer);
+        return;
+      }
+      const left = (quiz.deadline - Date.now()) / 1000;
+      const el = document.getElementById("quizTimer");
+      if (el) {
+        el.textContent = fmtTime(left);
+        el.classList.toggle("low", left <= 60);
+      }
+      if (left <= 0) {
+        clearInterval(quizTimer);
+        interviewTimeout();
+      }
+    }, 500);
+  }
+
+  function interviewTimeout() {
+    // Всё, на что не успели ответить, идёт в разбор как ошибка.
+    const from = quiz.checked ? quiz.idx + 1 : quiz.idx;
+    for (let i = from; i < quiz.items.length; i++) {
+      const q = quiz.items[i];
+      quiz.wrong.push({ q: q, given: null, timeout: true });
+      quiz.results.push({ q: q, ok: false });
+    }
+    quiz.timedOut = true;
+    toast("Время вышло");
+    finishQuiz();
+    window.scrollTo(0, 0);
+  }
+
+  function interviewReport(results) {
+    const byCourse = {};
+    const weakLessons = {};
+    results.forEach((r) => {
+      const c = byCourse[r.q.courseId] || { total: 0, ok: 0 };
+      c.total++;
+      if (r.ok) c.ok++;
+      else weakLessons[r.q.lessonId] = (weakLessons[r.q.lessonId] || 0) + 1;
+      byCourse[r.q.courseId] = c;
+    });
+    let html = '<section class="section"><div class="section-head"><h2>По направлениям</h2></div><div class="card">';
+    Object.keys(byCourse)
+      .sort((a, b) => byCourse[a].ok / byCourse[a].total - byCourse[b].ok / byCourse[b].total)
+      .forEach((id) => {
+        const c = byCourse[id];
+        const pct = Math.round((c.ok / c.total) * 100);
+        html +=
+          '<div class="iv-row"><span>' +
+          esc((courseById[id] || {}).title || id) +
+          '</span><div class="progress"><i style="width:' +
+          pct +
+          "%;background:" +
+          (pct >= 70 ? "var(--ok)" : pct >= 40 ? "var(--warn)" : "var(--bad)") +
+          '"></i></div><b>' +
+          c.ok +
+          "/" +
+          c.total +
+          "</b></div>";
+      });
+    html += "</div></section>";
+
+    const weak = Object.keys(weakLessons).filter((id) => lessonById[id]);
+    if (weak.length) {
+      html +=
+        '<section class="section"><div class="section-head"><h2>Что подтянуть</h2></div>' +
+        weak
+          .slice(0, 6)
+          .map(
+            (id) =>
+              '<a class="menu-item" href="#/lesson/' +
+              id +
+              '"><span class="mi-ico">📘</span><span class="mi-body"><b>' +
+              esc(lessonById[id].title) +
+              '</b><span class="mi-sub">' +
+              esc((courseById[lessonCourse[id]] || {}).title || "") +
+              "</span></span></a>"
+          )
+          .join("") +
+        "</section>";
+    }
+    return html;
   }
 
   function renderQuestion() {
@@ -941,6 +1078,10 @@
         '<button class="btn primary block mt" data-act="check">Проверить</button>';
     }
 
+    const timer = quiz.deadline
+      ? '<span class="quiz-timer" id="quizTimer">' + fmtTime((quiz.deadline - Date.now()) / 1000) + "</span>"
+      : "";
+
     view.innerHTML =
       '<div class="quiz-top"><div class="progress"><i style="width:' +
       pct +
@@ -948,7 +1089,9 @@
       (quiz.idx + 1) +
       "/" +
       quiz.items.length +
-      "</span></div>" +
+      "</span>" +
+      timer +
+      "</div>" +
       '<div class="question" style="--accent:' +
       ((courseById[q.courseId] || {}).accent || "#4f7cf7") +
       '"><span class="q-kind">' +
@@ -958,9 +1101,9 @@
       "</h2>" +
       body +
       '<div id="verdict"></div></div>' +
-      '<div class="btn-row mt"><a class="btn" href="#/lesson/' +
-      q.lessonId +
-      '">К уроку</a><button class="btn" data-act="quit">Прервать</button></div>';
+      '<div class="btn-row mt">' +
+      (quiz.deadline ? "" : '<a class="btn" href="#/lesson/' + q.lessonId + '">К уроку</a>') +
+      '<button class="btn" data-act="quit">Прервать</button></div>';
 
     quiz.sel = [];
     quiz.checked = false;
@@ -1018,6 +1161,7 @@
 
     const ok = isCorrect(q, quiz.sel, text);
     quiz.checked = true;
+    quiz.results.push({ q: q, ok: ok });
     if (ok) quiz.correct++;
     else quiz.wrong.push({ q: q, given: q.type === "input" ? text : quiz.sel.slice() });
 
@@ -1099,6 +1243,13 @@
     if (total >= 10 && pct === 100) state.flags.perfect = true;
     if (quiz.mode === "mistakes") state.flags.mistakes = true;
     if (quiz.mode === "exam" && pct >= 80) state.xp += 25;
+    const isInterview = quiz.mode === "interview";
+    if (isInterview) {
+      clearInterval(quizTimer);
+      state.games.interviewBest = Math.max(state.games.interviewBest || 0, pct);
+      state.games.played++;
+      if (pct >= 80) state.xp += 30;
+    }
     save();
 
     setTop("Результат", quiz.title);
@@ -1126,7 +1277,13 @@
       total +
       " · +" +
       quiz.correct * 3 +
-      " XP</p></section>";
+      " XP" +
+      (isInterview
+        ? " · " + fmtTime((Math.min(Date.now(), quiz.deadline) - quiz.startedAt) / 1000) + (quiz.timedOut ? " (время вышло)" : "")
+        : "") +
+      "</p></section>";
+
+    if (isInterview) html += interviewReport(quiz.results);
 
     if (quiz.wrong.length) {
       html += '<section class="section"><div class="section-head"><h2>Разбор ошибок</h2></div>';
@@ -1134,7 +1291,9 @@
         html +=
           '<div class="mistake"><b>' +
           esc(w.q.q) +
-          '</b><div class="ans">Правильно: ' +
+          "</b>" +
+          (w.timeout ? '<div class="muted small">не успели ответить</div>' : "") +
+          '<div class="ans">Правильно: ' +
           esc(correctText(w.q)) +
           "</div>" +
           (w.q.explain ? '<div class="muted small mt">' + esc(w.q.explain) + "</div>" : "") +
@@ -1151,6 +1310,7 @@
     html +=
       '<section class="section"><div class="btn-row">' +
       (quiz.wrong.length ? '<button class="btn primary" data-act="retry-wrong">Повторить ошибки</button>' : "") +
+      (isInterview ? '<a class="btn" href="#/interview">Ещё собеседование</a>' : "") +
       '<a class="btn" href="#/tests">К тестам</a><a class="btn" href="#/">На главную</a></div></section>';
 
     const wrongItems = quiz.wrong.map((w) => w.q);
@@ -2005,6 +2165,593 @@
     view.innerHTML = html;
   }
 
+  /* ================= собеседование ================= */
+
+  function renderInterview() {
+    setTop("Собеседование", INTERVIEW_SIZE + " вопросов на время");
+    const best = state.games.interviewBest || 0;
+    view.innerHTML =
+      '<section class="section"><div class="hero"><span class="hero-kicker">Проверка широты</span><h2>Как на настоящем собеседовании</h2><p>' +
+      INTERVIEW_SIZE +
+      " случайных вопросов по всем направлениям, не больше трёх из одного курса. На всё — " +
+      INTERVIEW_SECONDS / 60 +
+      " минут. Подсмотреть урок нельзя.</p></div></section>" +
+      '<section class="section"><div class="card"><h3>Что будет в конце</h3><ul class="bullets">' +
+      "<li>Результат по каждому направлению — где вы сильны, а где плаваете.</li>" +
+      "<li>Список уроков, которые стоит перечитать.</li>" +
+      "<li>Разбор каждой ошибки с объяснением.</li></ul>" +
+      (best ? '<p class="muted small mt">Лучший результат: ' + best + "%</p>" : "") +
+      "</div></section>" +
+      '<section class="section"><a class="btn primary block" href="#/quiz/interview/' +
+      INTERVIEW_SIZE +
+      '">Начать · таймер запустится сразу</a></section>';
+  }
+
+  /* ================= игры ================= */
+
+  // Одна активная игра; её таймер останавливается при уходе со страницы.
+  let game = null;
+  let gameTimer = null;
+  const VOCAB = CONTENT.vocab || [];
+  const BLITZ_SECONDS = 60;
+
+  function stopGame() {
+    clearInterval(gameTimer);
+    gameTimer = null;
+    game = null;
+  }
+
+  function shortDef(text) {
+    let s = String(text || "").split(/[.;:]/)[0].trim();
+    if (s.length > 72) s = s.slice(0, 70).replace(/\s+\S*$/, "") + "…";
+    return s;
+  }
+
+  // Набор уникальных пар «слева — справа» для игры «Найди пару».
+  function matchPairs(src) {
+    let raw;
+    if (src === "en") raw = shuffle(VOCAB).map((v) => ({ a: v.en, b: v.ru }));
+    else if (src === "keys") raw = shuffle(hotkeyPairs()).map((p) => ({ a: p.action, b: p.keys }));
+    else raw = shuffle(CONTENT.glossary.filter((g) => g.term.length <= 26)).map((g) => ({ a: g.term, b: shortDef(g.text) }));
+    const seenA = {};
+    const seenB = {};
+    const out = [];
+    raw.forEach((p) => {
+      const ka = norm(p.a);
+      const kb = norm(p.b);
+      if (out.length >= (src === "terms" ? 5 : 6) || seenA[ka] || seenB[kb] || !p.b) return;
+      seenA[ka] = seenB[kb] = true;
+      out.push(p);
+    });
+    return out;
+  }
+
+  // Головоломки «Собери порядок» берутся из пошаговых блоков уроков.
+  const ORDER_POOL = [];
+  allLessons.forEach((lesson) => {
+    (lesson.blocks || []).forEach((b) => {
+      if (b.type === "steps" && b.items.length >= 4 && b.items.length <= 7 && b.items.every((i) => i.length <= 170)) {
+        ORDER_POOL.push({ lessonId: lesson.id, title: b.title || lesson.title, items: b.items });
+      }
+    });
+  });
+
+  function blitzItem(src) {
+    if (src === "en") {
+      const v = VOCAB[Math.floor(Math.random() * VOCAB.length)];
+      const truth = Math.random() < 0.5;
+      let ru = v.ru;
+      if (!truth) {
+        const others = VOCAB.filter((x) => norm(x.ru) !== norm(v.ru));
+        ru = others[Math.floor(Math.random() * others.length)].ru;
+      }
+      return { q: v.en + " — это «" + ru + "»", answer: truth, explain: v.en + " — " + v.ru };
+    }
+    const pool = allQuestions.filter((q) => q.type === "bool" && q.courseId !== "english");
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function startGame(kind, src) {
+    stopGame();
+    if (kind === "match") {
+      const pairs = matchPairs(src);
+      if (pairs.length < 4) return false;
+      game = {
+        kind: kind,
+        src: src,
+        pairs: pairs,
+        left: shuffle(pairs.map((p, i) => i)),
+        right: shuffle(pairs.map((p, i) => i)),
+        selA: null,
+        selB: null,
+        done: {},
+        miss: null,
+        mistakes: 0,
+        startedAt: Date.now()
+      };
+      gameTimer = setInterval(() => {
+        const el = document.getElementById("gameClock");
+        if (el && game) el.textContent = fmtTime((Date.now() - game.startedAt) / 1000);
+      }, 500);
+    } else if (kind === "order") {
+      if (!ORDER_POOL.length) return false;
+      game = { kind: kind, src: "steps", rounds: shuffle(ORDER_POOL).slice(0, 3), round: 0, clean: 0, mistakes: 0 };
+      nextOrderRound();
+    } else if (kind === "blitz") {
+      if (src === "en" && VOCAB.length < 4) return false;
+      game = {
+        kind: kind,
+        src: src,
+        item: blitzItem(src),
+        correct: 0,
+        wrong: [],
+        flash: "",
+        deadline: Date.now() + BLITZ_SECONDS * 1000
+      };
+      gameTimer = setInterval(() => {
+        if (!game || game.kind !== "blitz") return clearInterval(gameTimer);
+        const left = (game.deadline - Date.now()) / 1000;
+        const el = document.getElementById("gameClock");
+        if (el) {
+          el.textContent = fmtTime(left);
+          el.classList.toggle("low", left <= 10);
+        }
+        const bar = document.getElementById("gameBar");
+        if (bar) bar.style.width = Math.max(0, (left / BLITZ_SECONDS) * 100) + "%";
+        if (left <= 0) finishGame();
+      }, 250);
+    } else {
+      return false;
+    }
+    return true;
+  }
+
+  function nextOrderRound() {
+    const r = game.rounds[game.round];
+    game.items = r.items;
+    game.shuffled = shuffle(r.items.map((t, i) => i));
+    // Перемешанный порядок не должен совпасть с правильным.
+    if (game.shuffled.every((v, i) => v === i)) game.shuffled.reverse();
+    game.placed = [];
+    game.roundMistakes = 0;
+    game.miss = null;
+  }
+
+  function finishGame() {
+    clearInterval(gameTimer);
+    gameTimer = null;
+    const g = game;
+    if (!g || g.finished) return;
+    g.finished = true;
+    state.games.played++;
+    if (g.kind === "match") {
+      g.time = Math.round((Date.now() - g.startedAt) / 1000);
+      const prev = state.games.matchBest[g.src];
+      g.record = !g.mistakes && (!prev || g.time < prev);
+      if (!g.mistakes) state.games.matchBest[g.src] = prev ? Math.min(prev, g.time) : g.time;
+      state.xp += g.mistakes ? 3 : 6;
+    } else if (g.kind === "order") {
+      state.games.orderSolved += g.rounds.length;
+      state.xp += g.clean * 4 + 2;
+    } else if (g.kind === "blitz") {
+      const prev = state.games.blitzBest[g.src] || 0;
+      g.record = g.correct > prev;
+      state.games.blitzBest[g.src] = Math.max(prev, g.correct);
+      state.xp += g.correct;
+    }
+    save();
+    renderGames();
+    window.scrollTo(0, 0);
+  }
+
+  const GAME_SRC = {
+    terms: "Термины",
+    en: "Английский",
+    keys: "Горячие клавиши",
+    bim: "Вопросы по BIM",
+    steps: "Пошаговые инструкции"
+  };
+
+  function gameTile(href, em, title, sub) {
+    return (
+      '<a class="menu-item" href="' +
+      href +
+      '"><span class="mi-ico">' +
+      em +
+      '</span><span class="mi-body"><b>' +
+      esc(title) +
+      '</b><span class="mi-sub">' +
+      esc(sub) +
+      "</span></span></a>"
+    );
+  }
+
+  function gameButton(kind, src, title, sub) {
+    return (
+      '<button class="menu-item" data-act="game-start" data-kind="' +
+      kind +
+      '" data-src="' +
+      src +
+      '"><span class="mi-body"><b>' +
+      esc(title) +
+      '</b><span class="mi-sub">' +
+      esc(sub) +
+      '</span></span><span class="lesson-arrow">▶</span></button>'
+    );
+  }
+
+  function renderGames() {
+    if (game && !game.finished) return renderGameBoard();
+    if (game && game.finished) return renderGameResult();
+
+    setTop("Игры", "учиться играя");
+    const gs = state.games;
+    const mb = (k) => (gs.matchBest[k] ? "рекорд " + fmtTime(gs.matchBest[k]) : "ещё не играли");
+    const bb = (k) => (gs.blitzBest[k] ? "рекорд " + gs.blitzBest[k] + " за минуту" : "ещё не играли");
+
+    let html =
+      '<section class="section"><div class="hero"><span class="hero-kicker">Сыграно: ' +
+      gs.played +
+      '</span><h2>Короткие игры на 1–3 минуты</h2><p>Те же знания, что в уроках, но в формате, который легко повторять каждый день. За каждую игру начисляется XP.</p></div></section>';
+
+    html +=
+      '<section class="section"><div class="section-head"><h2>🧩 Найди пару</h2></div>' +
+      '<p class="muted small">Соедините понятие с его значением. Без ошибок засчитывается рекорд по времени.</p>' +
+      gameButton("match", "terms", GAME_SRC.terms, mb("terms")) +
+      (VOCAB.length ? gameButton("match", "en", GAME_SRC.en, mb("en")) : "") +
+      gameButton("match", "keys", GAME_SRC.keys, mb("keys")) +
+      "</section>";
+
+    html +=
+      '<section class="section"><div class="section-head"><h2>⏱ Блиц на минуту</h2></div>' +
+      '<p class="muted small">Верно или нет — отвечайте как можно быстрее. Считаются верные ответы за 60 секунд.</p>' +
+      gameButton("blitz", "bim", GAME_SRC.bim, bb("bim")) +
+      (VOCAB.length ? gameButton("blitz", "en", GAME_SRC.en, bb("en")) : "") +
+      "</section>";
+
+    html +=
+      '<section class="section"><div class="section-head"><h2>🔢 Собери порядок</h2></div>' +
+      '<p class="muted small">Шаги из уроков перемешаны — нажимайте их в правильной последовательности. Три задачи за игру.</p>' +
+      gameButton("order", "steps", GAME_SRC.steps, ORDER_POOL.length + " задач в базе · решено " + gs.orderSolved) +
+      "</section>";
+
+    html +=
+      '<section class="section"><div class="section-head"><h2>Ещё тренировки</h2></div>' +
+      gameTile("#/interview", "💼", "Собеседование", INTERVIEW_SIZE + " вопросов за " + INTERVIEW_SECONDS / 60 + " минут") +
+      gameTile("#/cards", "🃏", "Карточки терминов", "повторение по интервалам") +
+      gameTile("#/drill", "⌨️", "Тренажёр клавиш", "сочетания на скорость") +
+      "</section>";
+
+    view.innerHTML = html;
+  }
+
+  function renderGameBoard() {
+    const g = game;
+    if (g.kind === "match") {
+      setTop("Найди пару", GAME_SRC[g.src]);
+      const found = Object.keys(g.done).length;
+      const cell = (side, i, text) => {
+        let cls = "m-cell";
+        if (g.done[i]) cls += " done";
+        else if ((side === "a" ? g.selA : g.selB) === i) cls += " sel";
+        if (g.miss && g.miss[side] === i) cls += " miss";
+        return (
+          '<button class="' +
+          cls +
+          '" data-act="m-pick" data-side="' +
+          side +
+          '" data-i="' +
+          i +
+          '"' +
+          (g.done[i] ? " disabled" : "") +
+          ">" +
+          esc(text) +
+          "</button>"
+        );
+      };
+      view.innerHTML =
+        '<div class="quiz-top"><div class="progress"><i style="width:' +
+        Math.round((found / g.pairs.length) * 100) +
+        '%"></i></div><span class="quiz-count">' +
+        found +
+        "/" +
+        g.pairs.length +
+        '</span><span class="quiz-timer" id="gameClock">' +
+        fmtTime((Date.now() - g.startedAt) / 1000) +
+        "</span></div>" +
+        '<div class="match' +
+        (g.src === "terms" ? " wide" : "") +
+        '"><div class="m-col">' +
+        g.left.map((i) => cell("a", i, g.pairs[i].a)).join("") +
+        '</div><div class="m-col">' +
+        g.right.map((i) => cell("b", i, g.pairs[i].b)).join("") +
+        "</div></div>" +
+        '<p class="muted small mt">Ошибок: ' +
+        g.mistakes +
+        '</p><div class="btn-row mt"><button class="btn" data-act="game-quit">Прервать</button></div>';
+      return;
+    }
+
+    if (g.kind === "order") {
+      const r = g.rounds[g.round];
+      setTop("Собери порядок", "задача " + (g.round + 1) + " из " + g.rounds.length);
+      const solved = g.placed.length === g.items.length;
+      let html =
+        '<div class="quiz-top"><div class="progress"><i style="width:' +
+        Math.round(((g.round + (solved ? 1 : 0)) / g.rounds.length) * 100) +
+        '%"></i></div><span class="quiz-count">' +
+        (g.round + 1) +
+        "/" +
+        g.rounds.length +
+        "</span></div>" +
+        '<section class="question"><span class="q-kind">' +
+        esc((courseById[lessonCourse[r.lessonId]] || {}).title || "") +
+        "</span><h2>" +
+        esc(r.title) +
+        '</h2><p class="muted small" style="margin-top:-8px">Нажимайте шаги по порядку: первый, второй, третий…</p><div class="options">' +
+        g.shuffled
+          .map((i) => {
+            const pos = g.placed.indexOf(i);
+            let cls = "option order-item";
+            if (pos >= 0) cls += " right";
+            if (g.miss === i) cls += " wrong";
+            return (
+              '<button class="' +
+              cls +
+              '" data-act="o-pick" data-i="' +
+              i +
+              '"' +
+              (pos >= 0 || solved ? " disabled" : "") +
+              '><span class="mark">' +
+              (pos >= 0 ? pos + 1 : "") +
+              "</span><span>" +
+              esc(g.items[i]) +
+              "</span></button>"
+            );
+          })
+          .join("") +
+        "</div>";
+      if (solved) {
+        html +=
+          '<div class="verdict ' +
+          (g.roundMistakes ? "no" : "ok") +
+          '"><b>' +
+          (g.roundMistakes ? "Собрано, ошибок: " + g.roundMistakes : "Чисто, без ошибок") +
+          '</b><p><a href="#/lesson/' +
+          r.lessonId +
+          '">Открыть урок с этой инструкцией</a></p></div>' +
+          '<button class="btn primary block mt" data-act="o-next">' +
+          (g.round + 1 < g.rounds.length ? "Следующая задача →" : "Результат") +
+          "</button>";
+      }
+      html += '</section><div class="btn-row mt"><button class="btn" data-act="game-quit">Прервать</button></div>';
+      view.innerHTML = html;
+      return;
+    }
+
+    if (g.kind === "blitz") {
+      setTop("Блиц", GAME_SRC[g.src]);
+      const left = (g.deadline - Date.now()) / 1000;
+      view.innerHTML =
+        '<div class="quiz-top"><span class="quiz-count">Верно: ' +
+        g.correct +
+        '</span><div class="progress"><i id="gameBar" style="width:' +
+        Math.max(0, (left / BLITZ_SECONDS) * 100) +
+        '%"></i></div><span class="quiz-timer' +
+        (left <= 10 ? " low" : "") +
+        '" id="gameClock">' +
+        fmtTime(left) +
+        "</span></div>" +
+        '<section class="question blitz ' +
+        g.flash +
+        '"><span class="q-kind">Верно или нет?</span><h2>' +
+        esc(g.item.q) +
+        '</h2><div class="blitz-btns"><button class="btn primary" data-act="b-pick" data-v="1">Верно</button>' +
+        '<button class="btn" data-act="b-pick" data-v="0">Неверно</button></div></section>' +
+        '<div class="btn-row mt"><button class="btn" data-act="game-quit">Прервать</button></div>';
+    }
+  }
+
+  function renderGameResult() {
+    const g = game;
+    game = null;
+    setTop("Результат", "игра окончена");
+    let big = "";
+    let sub = "";
+    if (g.kind === "match") {
+      big = fmtTime(g.time);
+      sub = g.mistakes
+        ? "ошибок: " + g.mistakes + " — рекорд засчитывается только без ошибок"
+        : g.record
+        ? "без ошибок · новый рекорд!"
+        : "без ошибок";
+    } else if (g.kind === "order") {
+      big = g.clean + " из " + g.rounds.length;
+      sub = "задач собрано без единой ошибки";
+    } else {
+      big = String(g.correct);
+      sub = "верных за минуту" + (g.record ? " · новый рекорд!" : "") + (g.wrong.length ? " · ошибок: " + g.wrong.length : "");
+    }
+    let html =
+      '<section class="section"><div class="card center"><p class="big">' +
+      big +
+      '</p><p class="muted">' +
+      esc(sub) +
+      "</p></div></section>";
+    if (g.kind === "blitz" && g.wrong.length) {
+      html +=
+        '<section class="section"><div class="section-head"><h2>Где ошиблись</h2></div>' +
+        g.wrong
+          .slice(0, 8)
+          .map(
+            (w) =>
+              '<div class="mistake"><b>' +
+              esc(w.q) +
+              '</b><div class="ans">Правильно: ' +
+              (w.answer ? "верно" : "неверно") +
+              "</div>" +
+              (w.explain ? '<div class="muted small mt">' + esc(w.explain) + "</div>" : "") +
+              "</div>"
+          )
+          .join("") +
+        "</section>";
+    }
+    html +=
+      '<section class="section"><div class="btn-row"><button class="btn primary" data-act="game-start" data-kind="' +
+      g.kind +
+      '" data-src="' +
+      esc(g.src) +
+      '">Ещё раз</button><button class="btn" data-act="games-home">Все игры</button></div></section>';
+    view.innerHTML = html;
+  }
+
+  function matchPick(side, i) {
+    const g = game;
+    if (!g || g.kind !== "match" || g.done[i] || g.lock) return;
+    if (side === "a") g.selA = g.selA === i ? null : i;
+    else g.selB = g.selB === i ? null : i;
+    if (g.selA !== null && g.selB !== null) {
+      if (g.selA === g.selB) {
+        g.done[g.selA] = true;
+        g.selA = g.selB = null;
+        if (Object.keys(g.done).length === g.pairs.length) return finishGame();
+      } else {
+        g.mistakes++;
+        g.miss = { a: g.selA, b: g.selB };
+        g.lock = true;
+        renderGameBoard();
+        setTimeout(() => {
+          if (game !== g) return;
+          g.miss = null;
+          g.lock = false;
+          g.selA = g.selB = null;
+          renderGameBoard();
+        }, 550);
+        return;
+      }
+    }
+    renderGameBoard();
+  }
+
+  function orderPick(i) {
+    const g = game;
+    if (!g || g.kind !== "order" || g.lock || g.placed.indexOf(i) >= 0) return;
+    if (i === g.placed.length) {
+      g.placed.push(i);
+      if (g.placed.length === g.items.length && !g.roundMistakes) g.clean++;
+      return renderGameBoard();
+    }
+    g.mistakes++;
+    g.roundMistakes++;
+    g.miss = i;
+    g.lock = true;
+    renderGameBoard();
+    setTimeout(() => {
+      if (game !== g) return;
+      g.miss = null;
+      g.lock = false;
+      renderGameBoard();
+    }, 500);
+  }
+
+  function blitzPick(v) {
+    const g = game;
+    if (!g || g.kind !== "blitz" || g.finished || Date.now() > g.deadline) return;
+    const ok = (v === 1) === g.item.answer;
+    if (ok) g.correct++;
+    else g.wrong.push(g.item);
+    g.flash = ok ? "flash-ok" : "flash-no";
+    let next = blitzItem(g.src);
+    for (let k = 0; k < 4 && next.q === g.item.q; k++) next = blitzItem(g.src);
+    g.item = next;
+    renderGameBoard();
+  }
+
+  /* ================= крупный просмотр схем ================= */
+
+  function openZoom(key, srcEl) {
+    const svg = FIGURES[key];
+    if (!svg) return;
+    closeZoom();
+    const ov = document.createElement("div");
+    ov.className = "zoom";
+    ov.id = "zoom";
+    ov.setAttribute("role", "dialog");
+    // Схема в крупном просмотре сохраняет цвет курса, из которого её открыли.
+    if (srcEl) ov.style.setProperty("--accent", getComputedStyle(srcEl).getPropertyValue("--accent"));
+    ov.innerHTML =
+      '<div class="zoom-bar"><button class="icon-btn" data-z="out" aria-label="Уменьшить">−</button>' +
+      '<span class="zoom-pct" id="zoomPct">100%</span>' +
+      '<button class="icon-btn" data-z="in" aria-label="Увеличить">+</button>' +
+      '<button class="icon-btn" data-z="close" aria-label="Закрыть">✕</button></div>' +
+      '<div class="zoom-stage" id="zoomStage"><div class="zoom-inner" id="zoomInner">' +
+      svg +
+      "</div></div>" +
+      '<p class="zoom-hint">Двумя пальцами или кнопками — масштаб. Поверните телефон, чтобы схема стала крупнее.</p>';
+    document.body.appendChild(ov);
+    document.body.classList.add("no-scroll");
+
+    const stage = ov.querySelector("#zoomStage");
+    const inner = ov.querySelector("#zoomInner");
+    let scale = 1;
+    const apply = (next, cx, cy) => {
+      const prev = scale;
+      scale = Math.max(1, Math.min(4, next));
+      const ax = cx == null ? stage.clientWidth / 2 : cx;
+      const ay = cy == null ? stage.clientHeight / 2 : cy;
+      // Точка под пальцами остаётся на месте, чтобы схема не «уезжала».
+      const px = (stage.scrollLeft + ax) / prev;
+      const py = (stage.scrollTop + ay) / prev;
+      inner.style.width = scale * 100 + "%";
+      stage.scrollLeft = px * scale - ax;
+      stage.scrollTop = py * scale - ay;
+      ov.querySelector("#zoomPct").textContent = Math.round(scale * 100) + "%";
+    };
+
+    ov.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-z]");
+      if (!b) return;
+      if (b.dataset.z === "close") closeZoom();
+      if (b.dataset.z === "in") apply(scale * 1.5);
+      if (b.dataset.z === "out") apply(scale / 1.5);
+    });
+
+    let pinch = null;
+    const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    stage.addEventListener(
+      "touchstart",
+      (e) => {
+        if (e.touches.length === 2) pinch = { d: dist(e.touches), s: scale };
+      },
+      { passive: true }
+    );
+    stage.addEventListener(
+      "touchmove",
+      (e) => {
+        if (!pinch || e.touches.length !== 2) return;
+        e.preventDefault();
+        const r = stage.getBoundingClientRect();
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+        apply(pinch.s * (dist(e.touches) / pinch.d), cx, cy);
+      },
+      { passive: false }
+    );
+    stage.addEventListener("touchend", (e) => {
+      if (e.touches.length < 2) pinch = null;
+    });
+    stage.addEventListener("dblclick", (e) => {
+      const r = stage.getBoundingClientRect();
+      apply(scale > 1.4 ? 1 : 2.2, e.clientX - r.left, e.clientY - r.top);
+    });
+  }
+
+  function closeZoom() {
+    const ov = document.getElementById("zoom");
+    if (ov) ov.remove();
+    document.body.classList.remove("no-scroll");
+  }
+
   /* ================= новости ================= */
 
   const NEWS = (CONTENT.news && CONTENT.news.sources) ? CONTENT.news : { sources: [], timeline: [] };
@@ -2416,6 +3163,8 @@
       '<a class="menu-item" href="#/warnings"><span class="mi-ico">⚠️</span><span class="mi-body"><b>Предупреждения Revit</b><span class="mi-sub">' +
       WARNINGS.length +
       " разборов: что значит и как чинить</span></span></a>" +
+      '<a class="menu-item" href="#/games"><span class="mi-ico">🎮</span><span class="mi-body"><b>Игры</b><span class="mi-sub">найди пару, блиц, собери порядок</span></span></a>' +
+      '<a class="menu-item" href="#/interview"><span class="mi-ico">💼</span><span class="mi-body"><b>Собеседование</b><span class="mi-sub">случайные вопросы на время</span></span></a>' +
       '<a class="menu-item" href="#/cards"><span class="mi-ico">🃏</span><span class="mi-body"><b>Карточки терминов</b><span class="mi-sub">' +
       (dueCards().length ? dueCards().length + " к повтору" : "повторение по интервалам") +
       "</span></span></a>" +
@@ -2508,6 +3257,37 @@
     if (!el) return;
     const act = el.dataset.act;
 
+    if (act === "zoom-fig") return openZoom(el.dataset.fig, el);
+    if (act === "game-start") {
+      if (!startGame(el.dataset.kind, el.dataset.src)) return toast("Для этой игры пока мало данных");
+      if (location.hash !== "#/games") location.hash = "#/games";
+      else renderGames();
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (act === "game-quit") {
+      stopGame();
+      return renderGames();
+    }
+    if (act === "games-home") {
+      stopGame();
+      if (location.hash !== "#/games") location.hash = "#/games";
+      else renderGames();
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (act === "m-pick") return matchPick(el.dataset.side, Number(el.dataset.i));
+    if (act === "o-pick") return orderPick(Number(el.dataset.i));
+    if (act === "o-next") {
+      if (!game || game.kind !== "order") return;
+      if (game.round + 1 >= game.rounds.length) return finishGame();
+      game.round++;
+      nextOrderRound();
+      renderGameBoard();
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (act === "b-pick") return blitzPick(Number(el.dataset.v));
     if (act === "pick") return pick(Number(el.dataset.i));
     if (act === "check") return checkAnswer();
     if (act === "next") return nextQuestion();
@@ -2529,7 +3309,9 @@
         checked: false,
         correct: 0,
         wrong: [],
-        startedAt: Date.now()
+        results: [],
+        startedAt: Date.now(),
+        deadline: 0
       };
       renderQuestion();
       window.scrollTo(0, 0);
@@ -2824,6 +3606,20 @@
   }, true);
 
   document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && document.getElementById("zoom")) return closeZoom();
+    const fig = e.target.closest && e.target.closest('[data-act="zoom-fig"]');
+    if (fig && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      return openZoom(fig.dataset.fig, fig);
+    }
+    // В блице с клавиатуры: стрелка влево — «верно», вправо — «неверно».
+    if (game && game.kind === "blitz" && !game.finished && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+      e.preventDefault();
+      return blitzPick(e.key === "ArrowLeft" ? 1 : 0);
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
     if (!quiz) return;
     const nextBtn = document.querySelector('[data-act="next"]');
@@ -2911,6 +3707,8 @@
 
   function route() {
     const [name, a, b, params] = currentRoute();
+    closeZoom();
+    if (name !== "games" && game) stopGame();
 
     document.querySelectorAll(".tab").forEach((t) => {
       t.classList.toggle("active", TAB_ROUTES[name] === t.dataset.tab);
@@ -2962,6 +3760,12 @@
         break;
       case "drill":
         renderDrill(params);
+        break;
+      case "games":
+        renderGames();
+        break;
+      case "interview":
+        renderInterview();
         break;
       case "bookmarks":
         renderBookmarks();

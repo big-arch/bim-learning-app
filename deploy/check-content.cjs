@@ -22,6 +22,7 @@ const files = [
   "data/course-practice.js",
   "data/course-manager.js",
   "data/course-revit-server.js",
+  "data/course-english.js",
   "data/course-software.js",
   "data/glossary.js",
   "data/videos.js",
@@ -174,6 +175,16 @@ warnings.forEach((w) => {
   if (w.lesson && !lessonIds.has(w.lesson)) errors.push("предупреждение " + w.id + ": ссылка на несуществующий урок " + w.lesson);
 });
 
+// Словарь английского: питает игры, поэтому пустых и повторяющихся слов быть не должно.
+const vocab = C.vocab || [];
+const seenEn = new Set();
+vocab.forEach((v, i) => {
+  if (!v.en || !v.ru) errors.push("словарь, запись " + (i + 1) + ": нет английского слова или перевода");
+  const k = String(v.en || "").toLowerCase();
+  if (seenEn.has(k)) errors.push("словарь: повторяется слово " + v.en);
+  seenEn.add(k);
+});
+
 const lessons = C.courses.reduce((a, c) => a + c.lessons.length, 0);
 const questions = C.courses.reduce((a, c) => a + c.lessons.reduce((b, l) => b + l.questions.length, 0), 0);
 
@@ -186,7 +197,8 @@ console.log(
   " | схем: " + figures.size +
   " | источников новостей: " + news.sources.length +
   " | пунктов чек-листов: " + seenItems.size +
-  " | предупреждений: " + warnings.length
+  " | предупреждений: " + warnings.length +
+  " | слов в словаре: " + vocab.length
 );
 
 if (orphanTerms.size) {

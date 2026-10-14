@@ -1,7 +1,12 @@
 {
   "app": "BIM Academy",
-  "version": "2026-09-05-v10",
+  "version": "2026-10-14-v11",
   "features": [
+    "course-english-for-bim",
+    "games-match-blitz-order",
+    "interview-mode-timed",
+    "figure-zoom",
+    "mobile-table-cards",
     "course-revit-server",
     "pyrevit-plugins-topic",
     "revitlookup-lesson",
