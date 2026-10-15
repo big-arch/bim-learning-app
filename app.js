@@ -2298,6 +2298,7 @@
   let syncAgain = false;
   let syncInfo = { status: "off", at: 0, error: "" };
   let otpEmail = "";
+  let syncMode = "code";
 
   const deviceId = (() => {
     try {
@@ -2548,13 +2549,27 @@
         '</h3><p id="syncStatus">' +
         esc(syncStatusText()) +
         '</p></div></div><p class="muted small mt">Синхронизация идёт сама: после каждого действия, при открытии приложения и раз в минуту, пока оно открыто. Изменения с других устройств приходят сразу.</p>' +
-        '<div class="btn-row mt"><button class="btn small" data-act="sync-now">Проверить сейчас</button><button class="btn small" data-act="sync-out">Выйти</button></div></div></section>'
+        '<div class="btn-row mt"><button class="btn small" data-act="sync-now">Проверить сейчас</button><button class="btn small" data-act="sync-out">Выйти</button></div>' +
+        '<details class="sync-pass mt"><summary>Пароль для входа на других устройствах</summary>' +
+        '<p class="muted small mt">Задайте пароль один раз — и на любом компьютере или телефоне входите по почте и паролю, без писем. Письма Supabase ограничены парой штук в час.</p>' +
+        '<input class="answer-input mt" id="newPass" type="password" autocomplete="new-password" placeholder="Новый пароль, от 8 символов">' +
+        '<button class="btn primary block mt" data-act="sync-setpass">Сохранить пароль</button></details></div></section>'
       );
     }
     return (
       '<section class="section" id="syncSection"><div class="section-head"><h2>Синхронизация</h2><span class="muted small">телефон и компьютеры</span></div><div class="card">' +
       "<p>Войдите по почте — и прогресс будет одинаковым на всех устройствах. Пароль не нужен: придёт письмо с кодом.</p>" +
-      (otpEmail
+      '<div class="segmented mt"><button data-act="sync-mode" data-m="pass" class="' +
+      (syncMode === "pass" ? "on" : "") +
+      '">По паролю</button><button data-act="sync-mode" data-m="code" class="' +
+      (syncMode === "code" ? "on" : "") +
+      '">Код на почту</button></div>' +
+      (syncMode === "pass"
+        ? '<input class="answer-input mt" id="passEmail" type="email" autocomplete="email" placeholder="you@example.ru">' +
+          '<input class="answer-input mt" id="passValue" type="password" autocomplete="current-password" placeholder="Пароль">' +
+          '<button class="btn primary block mt" data-act="sync-login">Войти</button>' +
+          '<p class="muted small mt">Пароля ещё нет? Войдите один раз через «Код на почту» и задайте пароль в этом же разделе.</p>'
+        : otpEmail
         ? '<p class="mt"><b>Код отправлен на ' +
           esc(otpEmail) +
           '</b></p><input class="answer-input mt" id="otpCode" type="text" autocomplete="one-time-code" placeholder="Код или ссылка из письма">' +
@@ -2579,6 +2594,26 @@
     }
   }
 
+  async function syncLoginPass() {
+    const email = ((document.getElementById("passEmail") || {}).value || "").trim();
+    const password = (document.getElementById("passValue") || {}).value || "";
+    if (!email || !password) return toast("Введите почту и пароль");
+    if (!navigator.onLine) return toast("Нужен интернет");
+    const { error } = await sb.auth.signInWithPassword({ email: email, password: password });
+    if (error) return toast(/invalid/i.test(error.message) ? "Неверная почта или пароль" : "Не удалось войти: " + error.message);
+    toast("Вход выполнен — объединяю прогресс");
+  }
+
+  async function syncSetPass() {
+    const input = document.getElementById("newPass");
+    const password = (input && input.value) || "";
+    if (password.length < 8) return toast("Пароль — от 8 символов");
+    const { error } = await sb.auth.updateUser({ password: password });
+    if (error) return toast("Не удалось сохранить: " + error.message);
+    input.value = "";
+    toast("Пароль сохранён — на других устройствах входите по паролю");
+  }
+
   async function syncSendCode() {
     const input = document.getElementById("syncEmail");
     const email = ((input && input.value) || "").trim();
@@ -2589,7 +2624,14 @@
       email: email,
       options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname }
     });
-    if (error) return toast("Не удалось отправить: " + error.message);
+    if (error) {
+      if (/rate limit|too many/i.test(error.message)) {
+        syncMode = "pass";
+        renderMore();
+        return toast("Лимит писем Supabase: около двух в час. Войдите по паролю, если уже задали его, или попробуйте через час");
+      }
+      return toast("Не удалось отправить: " + error.message);
+    }
     otpEmail = email;
     renderMore();
   }
@@ -4756,6 +4798,12 @@
     if (act === "hero-tap") return heroSay();
     if (act === "sync-send") return syncSendCode();
     if (act === "sync-verify") return syncVerify();
+    if (act === "sync-login") return syncLoginPass();
+    if (act === "sync-setpass") return syncSetPass();
+    if (act === "sync-mode") {
+      syncMode = el.dataset.m;
+      return renderMore();
+    }
     if (act === "sync-reset") {
       otpEmail = "";
       return renderMore();
@@ -5089,6 +5137,8 @@
     if (e.key !== "Enter") return;
     if (e.target && e.target.id === "syncEmail") return syncSendCode();
     if (e.target && e.target.id === "otpCode") return syncVerify();
+    if (e.target && e.target.id === "passValue") return syncLoginPass();
+    if (e.target && e.target.id === "newPass") return syncSetPass();
     if (!quiz) return;
     const nextBtn = document.querySelector('[data-act="next"]');
     if (nextBtn) {

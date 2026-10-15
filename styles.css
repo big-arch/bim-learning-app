@@ -1215,3 +1215,4 @@ body.no-scroll { overflow: hidden; }
 .sync-dot.error { background: var(--bad); }
 .sync-dot.offline { background: var(--warn); }
 @keyframes syncPulse { 50% { opacity: 0.3; } }
+.sync-pass summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--accent); }
