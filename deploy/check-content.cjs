@@ -185,6 +185,32 @@ vocab.forEach((v, i) => {
   seenEn.add(k);
 });
 
+// Компаньоны: оба стиля должны рисовать каждого героя во всех состояниях.
+["heroes.js", "heroes-pixel.js", "heroes.css"].forEach((f) => {
+  if (!fs.existsSync(path.join(root, f))) return errors.push("нет файла " + f);
+  if (!html.includes(f)) errors.push(f + " не подключён в index.html");
+  if (!sw.includes("./" + f)) errors.push(f + " не добавлен в APP_SHELL в sw.js");
+});
+require(path.join(root, "heroes.js"));
+require(path.join(root, "heroes-pixel.js"));
+const HR = global.window.BIM_HEROES;
+const HPX = global.window.BIM_HEROES_PX;
+if (HR && HPX) {
+  HR.chars.forEach((c) => {
+    if (!c.phrases || c.phrases.length < 3) errors.push("компаньон " + c.id + ": мало фраз");
+    HR.states.forEach((st) => {
+      [0, 6].forEach((lvl) => {
+        try {
+          if (!/<svg/.test(HR.svg(c.id, st.id, lvl))) errors.push("компаньон " + c.id + "/" + st.id + ": пустой вектор");
+          if (!/<rect/.test(HPX.svg(c.id, st.id, lvl))) errors.push("компаньон " + c.id + "/" + st.id + ": пустой пиксель-арт");
+        } catch (e) {
+          errors.push("компаньон " + c.id + "/" + st.id + ": " + e.message);
+        }
+      });
+    });
+  });
+} else errors.push("компаньоны не загрузились");
+
 const lessons = C.courses.reduce((a, c) => a + c.lessons.length, 0);
 const questions = C.courses.reduce((a, c) => a + c.lessons.reduce((b, l) => b + l.questions.length, 0), 0);
 
@@ -198,7 +224,8 @@ console.log(
   " | источников новостей: " + news.sources.length +
   " | пунктов чек-листов: " + seenItems.size +
   " | предупреждений: " + warnings.length +
-  " | слов в словаре: " + vocab.length
+  " | слов в словаре: " + vocab.length +
+  " | компаньонов: " + (HR ? HR.chars.length : 0)
 );
 
 if (orphanTerms.size) {

@@ -1,7 +1,8 @@
 {
   "app": "BIM Academy",
-  "version": "2026-10-14-v11",
+  "version": "2026-10-15-v12",
   "features": [
+    "home-companion-vector-and-pixel",
     "course-english-for-bim",
     "games-match-blitz-order",
     "interview-mode-timed",

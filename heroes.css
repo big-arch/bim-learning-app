@@ -1,0 +1,152 @@
+/* Персонажи-компаньоны: контуры, позы и анимации */
+.hero-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.hero-svg .o { stroke: #1d2133; stroke-width: 2; stroke-linejoin: round; }
+.hero-svg .ln { fill: none; stroke: #1d2133; stroke-width: 2.2; stroke-linecap: round; }
+.hero-svg .shadow { fill: rgba(10, 14, 30, 0.18); }
+.hero-svg .z { font: 800 13px/1 system-ui, sans-serif; fill: currentColor; }
+
+.hero-svg .arm,
+.hero-svg .head,
+.hero-svg .eyes,
+.hero-svg .tail,
+.hero-svg .page,
+.hero-svg .figure-root,
+.hero-svg .breath,
+.hero-svg .mug,
+.hero-svg .pop,
+.hero-svg .cf,
+.hero-svg .log,
+.hero-svg .spark,
+.hero-svg .tw,
+.hero-svg .z { transform-box: fill-box; }
+.hero-svg .arm, .hero-svg .held { transform-box: view-box; transition: transform 0.4s ease; }
+.hero-svg { --sip: 118deg; --sipc: -100deg; }
+.hero-cat { --sip: 150deg; --sipc: -132deg; }
+.hero-svg .eyes { transform-origin: 50% 50%; }
+.hero-svg .head { transform-origin: 50% 90%; }
+.hero-svg .breath { transform-origin: 50% 100%; animation: hBreath 3.2s ease-in-out infinite; }
+.hero-cat .tail { transform-origin: 0% 100%; animation: hTail 2.6s ease-in-out infinite; }
+.hero-beaver .tail { transform-origin: 0% 50%; animation: hTail 3s ease-in-out infinite; }
+.hero-bot .antenna { animation: hBlink 1.6s steps(1) infinite; }
+.hero-bot .led { animation: hBlink 1.2s steps(1) infinite; }
+.hero-bot .led2 { animation-delay: 0.4s; }
+.hero-bot .led3 { animation-delay: 0.8s; }
+
+/* моргание, когда глаза открыты */
+.st-idle .eyes,
+.st-coffee .eyes,
+.st-game .eyes { animation: hEyes 4.2s infinite; }
+
+/* ждёт: руки слегка покачиваются */
+.st-idle .arm-l { animation: hSwayL 3.2s ease-in-out infinite; }
+.st-idle .arm-r { animation: hSwayR 3.2s ease-in-out infinite; }
+
+/* кофе: правая рука с кружкой поднимается к лицу */
+.st-coffee .arm-l { transform: rotate(8deg); }
+.st-coffee .arm-r { animation: hSipArm 4.6s ease-in-out infinite; }
+.st-coffee .held { animation: hSipHeld 4.6s ease-in-out infinite; }
+.st-coffee .steam { stroke-dasharray: 22; animation: hSteam 2.3s linear infinite; }
+.st-coffee .s2 { animation-delay: 1.15s; }
+.st-coffee .eyes { animation: hSipEyes 4.6s ease-in-out infinite; }
+
+/* работа: чертёж рисуется, рука с карандашом двигается */
+.st-work .arm-l { transform: rotate(-34deg); }
+.st-work .arm-r { animation: hDraw 1.1s ease-in-out infinite alternate; }
+.st-work .draw { stroke-dasharray: 130; animation: hLine 3.4s ease-in-out infinite; }
+.st-work .held { animation: hDrawHeld 1.1s ease-in-out infinite alternate; }
+.st-work .head { transform: rotate(-3deg); }
+.hero-bot.st-work .arm-r { animation: none; transform: rotate(-72deg); }
+.hero-bot.st-work .arm-l { transform: rotate(10deg); }
+.hero-bot.st-work .beam { animation: hBeam 1.8s ease-in-out infinite; }
+.hero-bot.st-work .hit { animation: hBlink 0.9s steps(1) infinite; }
+.hero-beaver.st-work .arm-l { animation: hPlace 2.5s ease-in-out infinite; }
+.hero-beaver.st-work .arm-l .held { animation: hPlaceHeld 2.5s ease-in-out infinite; }
+.hero-beaver.st-work .arm-r { transform: rotate(-14deg); animation: none; }
+.hero-beaver.st-work .log { animation: hLog 5s ease-out infinite; animation-delay: calc(var(--i) * 0.5s); }
+
+/* чтение: держит книгу, страница перелистывается */
+.st-read .arm-l { transform: rotate(-38deg); }
+.st-read .arm-r { transform: rotate(38deg); }
+.st-read .page { transform-origin: 0% 50%; animation: hPage 4.5s ease-in-out infinite; }
+.st-read .head { animation: hNod 4.5s ease-in-out infinite; }
+
+/* игра: быстро стучит по клавишам, экран светится */
+.st-game .arm-l { animation: hTapL 0.32s ease-in-out infinite alternate; }
+.st-game .arm-r { animation: hTapR 0.32s ease-in-out infinite alternate 0.16s; }
+.st-game .pop { opacity: 0; animation: hPop 2.4s ease-out infinite; }
+.st-game .pop2 { animation-delay: 1.2s; }
+
+/* сон: медленное дыхание, голова наклонена, летят «z» */
+.st-sleep .breath { animation: hBreathDeep 4.5s ease-in-out infinite; }
+.st-sleep .head { transform: rotate(9deg); }
+.st-sleep .arm-l { transform: rotate(-10deg); }
+.st-sleep .arm-r { transform: rotate(10deg); }
+.st-sleep .z { opacity: 0; animation: hZ 3.6s ease-out infinite; }
+.st-sleep .z2 { animation-delay: 1.2s; }
+.st-sleep .z3 { animation-delay: 2.4s; }
+
+/* подбадривает: машет рукой, сердечко пульсирует */
+.st-cheer .arm-l { transform: rotate(10deg); }
+.st-cheer .arm-r { animation: hWave 0.7s ease-in-out infinite alternate; }
+.st-cheer .spark { transform-origin: 50% 50%; animation: hPulse 1.4s ease-in-out infinite; }
+.st-cheer .tw { transform-origin: 50% 50%; animation: hTwinkle 1.6s ease-in-out infinite; }
+.st-cheer .tw2 { animation-delay: 0.8s; }
+
+/* праздник: прыгает, руки вверх, конфетти */
+.st-celebrate .figure-root { animation: hJump 0.9s cubic-bezier(0.3, 0.7, 0.4, 1) infinite; transform-origin: 50% 100%; }
+.st-celebrate .arm-l { animation: hUpL 0.45s ease-in-out infinite alternate; }
+.st-celebrate .arm-r { animation: hUpR 0.45s ease-in-out infinite alternate; }
+.st-celebrate .cf { animation: hFall 2.2s linear infinite; animation-delay: var(--d); }
+
+@keyframes hBreath { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(0.6px) scaleY(0.985); } }
+@keyframes hBreathDeep { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.96); } }
+@keyframes hEyes { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes hTail { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-9deg); } }
+@keyframes hBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+@keyframes hSwayL { 0%, 100% { transform: rotate(6deg); } 50% { transform: rotate(11deg); } }
+@keyframes hSwayR { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(-11deg); } }
+@keyframes hSipArm { 0%, 45%, 100% { transform: rotate(38deg); } 58%, 82% { transform: rotate(var(--sip)); } }
+@keyframes hSipHeld { 0%, 45%, 100% { transform: rotate(-38deg); } 58%, 82% { transform: rotate(var(--sipc)); } }
+@keyframes hSipEyes { 0%, 52%, 88%, 100% { transform: scaleY(1); } 60%, 80% { transform: scaleY(0.15); } }
+@keyframes hDrawHeld { from { transform: rotate(-26deg); } to { transform: rotate(-44deg); } }
+@keyframes hPlace { 0%, 100% { transform: rotate(38deg); } 50% { transform: rotate(62deg); } }
+@keyframes hPlaceHeld { 0%, 100% { transform: rotate(-38deg); } 50% { transform: rotate(-62deg); } }
+@keyframes hSteam { from { stroke-dashoffset: 44; opacity: 0.9; } to { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes hDraw { from { transform: rotate(26deg); } to { transform: rotate(44deg); } }
+@keyframes hLine { 0% { stroke-dashoffset: 130; } 70%, 100% { stroke-dashoffset: 0; } }
+@keyframes hBeam { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.5; } }
+@keyframes hLog { 0% { opacity: 0; transform: translateY(-14px); } 12%, 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
+@keyframes hPage { 0%, 40% { transform: scaleX(1); } 60%, 100% { transform: scaleX(-1); } }
+@keyframes hNod { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(3deg); } }
+@keyframes hTapL { from { transform: rotate(-30deg); } to { transform: rotate(-40deg); } }
+@keyframes hTapR { from { transform: rotate(30deg); } to { transform: rotate(40deg); } }
+@keyframes hPop { 0% { opacity: 0; transform: translateY(6px) scale(0.6); } 20% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-22px) scale(1); } }
+@keyframes hZ { 0% { opacity: 0; transform: translate(0, 6px) scale(0.7); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(10px, -16px) scale(1.2); } }
+@keyframes hWave { from { transform: rotate(-150deg); } to { transform: rotate(-118deg); } }
+@keyframes hPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+@keyframes hTwinkle { 0%, 100% { opacity: 0.2; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes hJump { 0%, 100% { transform: translateY(0) scaleY(1); } 10% { transform: translateY(0) scaleY(0.94); } 45% { transform: translateY(-12px) scaleY(1.02); } 80% { transform: translateY(0) scaleY(1); } }
+@keyframes hUpL { from { transform: rotate(140deg); } to { transform: rotate(160deg); } }
+@keyframes hUpR { from { transform: rotate(-140deg); } to { transform: rotate(-160deg); } }
+@keyframes hFall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(160px) rotate(var(--r)); opacity: 0.2; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-svg *, .hero-svg { animation: none !important; transition: none !important; }
+}
+
+/* Пиксельный стиль: два кадра сменяют друг друга */
+.px-svg { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.px-svg .pxA { animation: pxA 1.6s infinite; }
+.px-svg .pxB { opacity: 0; animation: pxB 1.6s infinite; }
+.px-svg.px-mid .pxA, .px-svg.px-mid .pxB { animation-duration: 0.8s; }
+.px-svg.px-fast .pxA, .px-svg.px-fast .pxB { animation-duration: 0.42s; }
+.px-svg.px-blink .pxA { animation: pxAb 3.6s infinite; }
+.px-svg.px-blink .pxB { animation: pxBb 3.6s infinite; }
+@keyframes pxA { 0%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes pxB { 0%, 49.9% { opacity: 0; } 50%, 100% { opacity: 1; } }
+@keyframes pxAb { 0%, 91.9% { opacity: 1; } 92%, 100% { opacity: 0; } }
+@keyframes pxBb { 0%, 91.9% { opacity: 0; } 92%, 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .px-svg .pxA { animation: none; opacity: 1; }
+  .px-svg .pxB { animation: none; opacity: 0; }
+}

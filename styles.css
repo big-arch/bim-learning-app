@@ -289,6 +289,7 @@ html[data-theme="dark"] .ico-moon { display: block; }
   height: 190px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.14);
+  pointer-events: none;
 }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; position: relative; }
 .hero h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: -0.3px; }
@@ -994,3 +995,62 @@ body.no-scroll { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .m-cell.miss, .option.wrong.order-item, .question.flash-ok, .question.flash-no { animation: none; }
 }
+
+/* ---------- Компаньон на главной ---------- */
+.hero-top > div:first-child { min-width: 0; flex: 1; }
+.companion {
+  position: static;
+  flex: none;
+  width: 92px;
+  margin: -10px -4px -12px;
+  color: #fff;
+  cursor: pointer;
+  z-index: 2;
+  -webkit-tap-highlight-color: transparent;
+}
+.companion:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 14px; }
+.companion-art .px-svg { width: 84%; margin: 6px auto 0; }
+.companion-bubble {
+  position: absolute;
+  z-index: 3;
+  top: -8px;
+  left: 0;
+  right: 150px;
+  padding: 8px 10px;
+  border-radius: 14px 4px 14px 14px;
+  background: #fff;
+  color: #12172a;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 8px 20px rgba(10, 14, 40, 0.25);
+  opacity: 0;
+  transform: translateY(-4px) scale(0.96);
+  transform-origin: 100% 30%;
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+}
+.companion-bubble.show { opacity: 1; transform: none; }
+@media (max-width: 360px) { .companion { width: 76px; } .companion-bubble { right: 130px; } }
+
+.hero-picks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.hero-pick {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  padding: 8px 6px 10px;
+  border-radius: 16px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  min-width: 0;
+}
+.hero-pick.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.hero-pick b { font-size: 12.5px; line-height: 1.25; }
+.hero-pick > span:last-child { font-size: 11px; color: var(--muted); }
+.hp-art { width: 100%; max-width: 78px; border-radius: 12px; background: var(--bg-soft); color: var(--accent); padding: 4px 6px 0; }
+.hp-art .px-svg { width: 86%; margin: 4px auto 0; }
+.hp-none { display: grid; place-items: center; aspect-ratio: 160 / 150; font-size: 26px; padding: 0; }

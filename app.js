@@ -131,7 +131,8 @@
     history: [],
     days: {},
     streak: { current: 0, best: 0, last: "" },
-    settings: { theme: "auto", goal: 10, newsProxy: "" },
+    settings: { theme: "auto", goal: 10, newsProxy: "", hero: "engineer", heroStyle: "vec" },
+    companion: { celebratedDay: "", lastQuizAt: 0, lastQuizPct: 100 },
     myVideos: [],
     mySources: [],
     checkProjects: [],
@@ -477,6 +478,7 @@
       " " +
       plural(state.settings.goal, "вопроса", "вопросов", "вопросов") +
       "</p></div>" +
+      heroHtml() +
       ringHtml(goalPct) +
       '</div><div class="hero-stats"><div class="hero-stat"><b>' +
       state.streak.current +
@@ -548,6 +550,7 @@
       "</div></section>";
 
     view.innerHTML = html;
+    startHero();
   }
 
   function actionTile(href, em, title, sub) {
@@ -1243,6 +1246,8 @@
     if (total >= 10 && pct === 100) state.flags.perfect = true;
     if (quiz.mode === "mistakes") state.flags.mistakes = true;
     if (quiz.mode === "exam" && pct >= 80) state.xp += 25;
+    state.companion.lastQuizAt = Date.now();
+    state.companion.lastQuizPct = pct;
     const isInterview = quiz.mode === "interview";
     if (isInterview) {
       clearInterval(quizTimer);
@@ -2163,6 +2168,160 @@
     html += "</section>";
     html += '<div class="btn-row mt"><button class="btn" data-act="drill-quit">Прервать</button></div>';
     view.innerHTML = html;
+  }
+
+  /* ================= компаньон на главной ================= */
+
+  // Герой живёт в карточке на главной: состояние зависит от времени суток,
+  // цели дня и последнего теста, а фразы всплывают иногда и по нажатию.
+  const HEROES = window.BIM_HEROES || null;
+  const HEROES_PX = window.BIM_HEROES_PX || null;
+  let heroTimer = null;
+  let heroBubbleTimer = null;
+  let heroPhraseIdx = 0;
+  let heroGreeted = false;
+
+  function heroChar(id) {
+    return HEROES ? HEROES.chars.filter((c) => c.id === id)[0] : null;
+  }
+
+  function heroDrawSvg(id, st, level) {
+    if (state.settings.heroStyle === "px" && HEROES_PX) return HEROES_PX.svg(id, st, level);
+    return HEROES.svg(id, st, level);
+  }
+
+  function heroLevel() {
+    return Math.max(0, RANKS.indexOf(rank().cur));
+  }
+
+  function heroContext() {
+    const t = todayStats();
+    const goal = state.settings.goal;
+    const c = state.companion;
+    const goalPct = Math.min(100, (t.questions / goal) * 100);
+    return {
+      hour: new Date().getHours(),
+      goalPct: goalPct,
+      left: Math.max(0, goal - t.questions),
+      justFinishedGoal: goalPct >= 100 && c.celebratedDay !== todayKey(),
+      lastWrong: !!c.lastQuizAt && Date.now() - c.lastQuizAt < 15 * 60000 && c.lastQuizPct < 70
+    };
+  }
+
+  function heroPhrases(ctx, ch) {
+    const list = [];
+    if (ctx.lastWrong) list.push("Ошибки — это тоже прогресс. Загляни в «Мои ошибки», они ждут повтора.");
+    if (ctx.goalPct >= 100) list.push("Цель дня выполнена! Можно гордиться собой.");
+    else if (ctx.left) list.push("До цели дня " + ctx.left + " " + plural(ctx.left, "вопрос", "вопроса", "вопросов") + ". Справимся?");
+    if (ctx.hour >= 23 || ctx.hour < 6) list.push("Уже поздно. Отдых — тоже часть обучения.");
+    else if (ctx.hour < 10) list.push("Доброе утро! Пара вопросов к кофе?");
+    if (state.streak.current >= 2) list.push("Серия " + state.streak.current + " " + plural(state.streak.current, "день", "дня", "дней") + " подряд — не прерывай!");
+    return list.concat(ch.phrases);
+  }
+
+  function heroHtml() {
+    if (!HEROES || state.settings.hero === "off" || !heroChar(state.settings.hero)) return "";
+    return (
+      '<div class="companion" id="companion" data-act="hero-tap" role="button" tabindex="0" aria-label="Компаньон: нажмите, чтобы он что-то сказал">' +
+      '<div class="companion-art" id="companionArt"></div>' +
+      '<div class="companion-bubble" id="companionBubble" aria-live="polite"></div></div>'
+    );
+  }
+
+  function heroDraw() {
+    const art = document.getElementById("companionArt");
+    if (!art) return;
+    const ctx = heroContext();
+    const st = HEROES.pickState(ctx);
+    // Праздник показывается один раз в день — сразу после выполнения цели.
+    if (st === "celebrate") {
+      state.companion.celebratedDay = todayKey();
+      save();
+    }
+    art.innerHTML = heroDrawSvg(state.settings.hero, st, heroLevel());
+  }
+
+  function heroSay(text) {
+    const b = document.getElementById("companionBubble");
+    if (!b) return;
+    if (!text) {
+      const ch = heroChar(state.settings.hero);
+      const list = heroPhrases(heroContext(), ch);
+      text = list[heroPhraseIdx % list.length];
+      heroPhraseIdx++;
+    }
+    b.textContent = text;
+    b.classList.add("show");
+    clearTimeout(heroBubbleTimer);
+    heroBubbleTimer = setTimeout(() => b.classList.remove("show"), 4200);
+  }
+
+  function startHero() {
+    clearInterval(heroTimer);
+    if (!document.getElementById("companion")) return;
+    heroPhraseIdx = 0;
+    heroDraw();
+    if (!heroGreeted) {
+      heroGreeted = true;
+      setTimeout(() => heroSay(), 1400);
+    }
+    let tick = 0;
+    heroTimer = setInterval(() => {
+      if (!document.getElementById("companion")) return clearInterval(heroTimer);
+      tick++;
+      heroDraw();
+      if (tick % 2 === 0 && Math.random() < 0.6) heroSay();
+    }, 24000);
+  }
+
+  function heroSettingsHtml() {
+    if (!HEROES) return "";
+    const cur = state.settings.hero;
+    return (
+      '<section class="section"><div class="section-head"><h2>Компаньон</h2><span class="muted small">живёт на главной</span></div>' +
+      '<div class="hero-picks">' +
+      HEROES.chars
+        .map(
+          (c) =>
+            '<button class="hero-pick' +
+            (cur === c.id ? " on" : "") +
+            '" data-act="hero-pick" data-id="' +
+            c.id +
+            '" aria-pressed="' +
+            (cur === c.id) +
+            '"><span class="hp-art">' +
+            heroDrawSvg(c.id, "idle", heroLevel()) +
+            "</span><b>" +
+            esc(c.name) +
+            "</b><span>" +
+            esc(c.role) +
+            "</span></button>"
+        )
+        .join("") +
+      '<button class="hero-pick off' +
+      (cur === "off" ? " on" : "") +
+      '" data-act="hero-pick" data-id="off" aria-pressed="' +
+      (cur === "off") +
+      '"><span class="hp-art hp-none">🚫</span><b>Без героя</b><span>карточка без анимации</span></button>' +
+      "</div>" +
+      '<div class="segmented mt">' +
+      [
+        ["vec", "Векторный"],
+        ["px", "Пиксель-арт"]
+      ]
+        .map(
+          (m) =>
+            '<button data-act="hero-style" data-m="' +
+            m[0] +
+            '" class="' +
+            (state.settings.heroStyle === m[0] ? "on" : "") +
+            '">' +
+            m[1] +
+            "</button>"
+        )
+        .join("") +
+      "</div></section>"
+    );
   }
 
   /* ================= собеседование ================= */
@@ -3175,6 +3334,7 @@
       " терминов</span></span></a></section>";
 
     html +=
+      heroSettingsHtml() +
       '<section class="section"><div class="section-head"><h2>Тема оформления</h2></div><div class="segmented">' +
       ["auto", "light", "dark"]
         .map(
@@ -3345,6 +3505,20 @@
       }
       save();
       renderLesson(id);
+      return;
+    }
+    if (act === "hero-tap") return heroSay();
+    if (act === "hero-pick") {
+      state.settings.hero = el.dataset.id;
+      save();
+      renderMore();
+      toast(el.dataset.id === "off" ? "Компаньон выключен" : "Компаньон выбран — загляните на главную");
+      return;
+    }
+    if (act === "hero-style") {
+      state.settings.heroStyle = el.dataset.m;
+      save();
+      renderMore();
       return;
     }
     if (act === "theme") {
@@ -3607,6 +3781,11 @@
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && document.getElementById("zoom")) return closeZoom();
+    const hero = e.target.closest && e.target.closest('[data-act="hero-tap"]');
+    if (hero && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      return heroSay();
+    }
     const fig = e.target.closest && e.target.closest('[data-act="zoom-fig"]');
     if (fig && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
@@ -3709,6 +3888,7 @@
     const [name, a, b, params] = currentRoute();
     closeZoom();
     if (name !== "games" && game) stopGame();
+    if (name !== "home") clearInterval(heroTimer);
 
     document.querySelectorAll(".tab").forEach((t) => {
       t.classList.toggle("active", TAB_ROUTES[name] === t.dataset.tab);
