@@ -1,6 +1,6 @@
 {
   "app": "BIM Academy",
-  "version": "2026-10-15-v15",
+  "version": "2026-10-15-v16",
   "features": [
     "cloud-sync-supabase-email-otp",
     "daily-training",

@@ -2517,6 +2517,10 @@
       refreshSyncUi();
     });
     window.addEventListener("online", () => syncNow());
+    // страховка: если мгновенные обновления оборвались, раз в минуту сверяемся с облаком
+    setInterval(() => {
+      if (document.visibilityState === "visible" && !syncBusy) syncNow();
+    }, 60000);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") syncNow();
     });
@@ -2543,8 +2547,8 @@
         esc(syncUser.email || "") +
         '</h3><p id="syncStatus">' +
         esc(syncStatusText()) +
-        '</p></div></div><p class="muted small mt">Прогресс одинаковый на всех устройствах, где вы вошли с этой почтой. Изменения уходят в облако через пару секунд, а открытые устройства получают их сразу.</p>' +
-        '<div class="btn-row mt"><button class="btn small primary" data-act="sync-now">Синхронизировать сейчас</button><button class="btn small" data-act="sync-out">Выйти</button></div></div></section>'
+        '</p></div></div><p class="muted small mt">Синхронизация идёт сама: после каждого действия, при открытии приложения и раз в минуту, пока оно открыто. Изменения с других устройств приходят сразу.</p>' +
+        '<div class="btn-row mt"><button class="btn small" data-act="sync-now">Проверить сейчас</button><button class="btn small" data-act="sync-out">Выйти</button></div></div></section>'
       );
     }
     return (
