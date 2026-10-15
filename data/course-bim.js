@@ -219,6 +219,7 @@ window.BIM_CONTENT.courses.push({
           text: "LOD (Level of Detail / Development) — насколько подробна геометрия. LOI (Level of Information) — насколько подробны данные. Это разные вещи: у элемента может быть грубая геометрия, но полный набор характеристик — и наоборот."
         },
         { type: "figure", figure: "lod-scale", caption: "От условного объёма к элементу «как построено»" },
+        { type: "sim", sim: "lod" },
         {
           type: "table",
           title: "Шкала LOD",

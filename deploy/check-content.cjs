@@ -29,7 +29,9 @@ const files = [
   "data/news.js",
   "data/checklists.js",
   "data/warnings.js",
-  "data/questions-extra.js"
+  "data/questions-extra.js",
+  "data/cases.js",
+  "data/paths.js"
 ];
 
 // Все ли файлы данных подключены в index.html и закэшированы service worker'ом.
@@ -185,6 +187,41 @@ vocab.forEach((v, i) => {
   seenEn.add(k);
 });
 
+// Тренажёры, траектории, кейсы: ссылки должны вести на существующие уроки и тренажёры.
+if (!fs.existsSync(path.join(root, "sims.js"))) errors.push("нет файла sims.js");
+else {
+  if (!html.includes("sims.js")) errors.push("sims.js не подключён в index.html");
+  if (!sw.includes("./sims.js")) errors.push("sims.js не добавлен в APP_SHELL в sw.js");
+  require(path.join(root, "sims.js"));
+}
+const SIMS = global.window.BIM_SIMS || {};
+Object.keys(SIMS).forEach((k) => {
+  if (!lessonIds.has(SIMS[k].lesson)) errors.push("тренажёр " + k + ": нет урока " + SIMS[k].lesson);
+});
+C.courses.forEach((c) =>
+  c.lessons.forEach((l) =>
+    (l.blocks || []).forEach((b) => {
+      if (b.type === "sim" && !SIMS[b.sim]) errors.push(l.id + ": ссылка на несуществующий тренажёр " + b.sim);
+    })
+  )
+);
+(C.paths || []).forEach((p) => {
+  if (!p.id || !p.title || !p.lessons || !p.lessons.length) errors.push("траектория " + (p.id || "?") + ": нет id, названия или уроков");
+  (p.lessons || []).forEach((id) => {
+    if (!lessonIds.has(id)) errors.push("траектория " + p.id + ": нет урока " + id);
+  });
+});
+(C.cases || []).forEach((cs) => {
+  if (!lessonIds.has(cs.lesson)) errors.push("кейс " + cs.id + ": нет урока " + cs.lesson);
+  (cs.steps || []).forEach((st, i) => {
+    if (!st.options || st.options.length < 2) errors.push("кейс " + cs.id + ", шаг " + (i + 1) + ": мало вариантов");
+    if (!(st.options || []).some((o) => o.score === 2)) errors.push("кейс " + cs.id + ", шаг " + (i + 1) + ": нет лучшего решения");
+    (st.options || []).forEach((o) => {
+      if (!o.why) errors.push("кейс " + cs.id + ", шаг " + (i + 1) + ": вариант без разбора");
+    });
+  });
+});
+
 // Компаньоны: оба стиля должны рисовать каждого героя во всех состояниях.
 ["heroes.js", "heroes-pixel.js", "heroes.css"].forEach((f) => {
   if (!fs.existsSync(path.join(root, f))) return errors.push("нет файла " + f);
@@ -225,7 +262,10 @@ console.log(
   " | пунктов чек-листов: " + seenItems.size +
   " | предупреждений: " + warnings.length +
   " | слов в словаре: " + vocab.length +
-  " | компаньонов: " + (HR ? HR.chars.length : 0)
+  " | компаньонов: " + (HR ? HR.chars.length : 0) +
+  " | тренажёров: " + Object.keys(SIMS).length +
+  " | траекторий: " + (C.paths || []).length +
+  " | кейсов: " + (C.cases || []).length
 );
 
 if (orphanTerms.size) {

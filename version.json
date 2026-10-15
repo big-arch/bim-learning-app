@@ -1,7 +1,16 @@
 {
   "app": "BIM Academy",
-  "version": "2026-10-15-v12",
+  "version": "2026-10-15-v13",
   "features": [
+    "daily-training",
+    "lesson-mastery-and-review",
+    "streak-freeze-heatmap-ics-reminder",
+    "interactive-simulators",
+    "project-cases",
+    "learning-paths-and-certificates",
+    "english-text-to-speech",
+    "daily-quests-weekly-chest",
+    "in-lesson-check",
     "home-companion-vector-and-pixel",
     "course-english-for-bim",
     "games-match-blitz-order",

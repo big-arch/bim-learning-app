@@ -308,6 +308,7 @@ window.BIM_CONTENT.courses.push({
           ]
         },
         { type: "figure", figure: "clash-flow", caption: "Место Clash Detective в цикле координации" },
+        { type: "sim", sim: "clash" },
         {
           type: "table",
           title: "Статусы коллизий",

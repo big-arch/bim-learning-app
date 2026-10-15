@@ -114,7 +114,9 @@
     { id: "fix", em: "🧹", title: "Работа над ошибками", desc: "пройден тест по ошибкам", test: (s) => !!s.flags.mistakes },
     { id: "gamer", em: "🎮", title: "Игрок", desc: "сыграно 10 игр", test: (s) => s.games.played >= 10 },
     { id: "blitz", em: "⏱", title: "Блиц-мастер", desc: "15 верных за минуту в блице", test: (s) => Object.keys(s.games.blitzBest).some((k) => s.games.blitzBest[k] >= 15) },
-    { id: "interview", em: "💼", title: "Готов к собеседованию", desc: "собеседование на 80% и выше", test: (s) => s.games.interviewBest >= 80 }
+    { id: "interview", em: "💼", title: "Готов к собеседованию", desc: "собеседование на 80% и выше", test: (s) => s.games.interviewBest >= 80 },
+    { id: "cert", em: "🎓", title: "Сертификат", desc: "пройдена траектория или курс целиком", test: (s) => !!s.flags.cert },
+    { id: "cases", em: "🧩", title: "Решала", desc: "все кейсы на «сильное решение»", test: (s) => (CONTENT.cases || []).length > 0 && (CONTENT.cases || []).every((c) => (s.cases[c.id] || 0) >= c.steps.length * 2 - 1) }
   ];
 
   const MISTAKE_HOURS = [0, 8, 24, 72, 168];
@@ -130,8 +132,11 @@
     mistakes: {},
     history: [],
     days: {},
-    streak: { current: 0, best: 0, last: "" },
-    settings: { theme: "auto", goal: 10, newsProxy: "", hero: "engineer", heroStyle: "vec" },
+    streak: { current: 0, best: 0, last: "", freezes: 0, frozen: [] },
+    settings: { theme: "auto", goal: 10, newsProxy: "", hero: "engineer", heroStyle: "vec", name: "", remindAt: "19:00" },
+    mastery: {},
+    quests: {},
+    cases: {},
     companion: { celebratedDay: "", lastQuizAt: 0, lastQuizPct: 100 },
     myVideos: [],
     mySources: [],
@@ -332,7 +337,7 @@
   function bumpDay(field, n) {
     const key = todayKey();
     if (!state.days[key]) state.days[key] = { lessons: 0, questions: 0 };
-    state.days[key][field] += n;
+    state.days[key][field] = (state.days[key][field] || 0) + n;
     checkStreak();
   }
 
@@ -341,8 +346,23 @@
     const day = state.days[key] || { questions: 0 };
     if (day.questions < state.settings.goal) return;
     if (state.streak.last === key) return;
-    state.streak.current = state.streak.last === shiftDay(key, -1) ? state.streak.current + 1 : 1;
-    state.streak.last = key;
+    const s = state.streak;
+    const gap = s.last ? daysBetween(s.last, key) : 0;
+    if (gap === 1) s.current++;
+    else if (gap > 1 && gap - 1 <= (s.freezes || 0)) {
+      // пропущенные дни закрываются заморозками — серия продолжается
+      s.freezes -= gap - 1;
+      s.frozen = s.frozen || [];
+      for (let i = 1; i < gap; i++) s.frozen.push(shiftDay(s.last, i));
+      s.frozen = s.frozen.slice(-60);
+      s.current++;
+      toast("Заморозка спасла серию ❄️");
+    } else s.current = 1;
+    s.last = key;
+    if (s.current % 7 === 0 && (s.freezes || 0) < 2) {
+      s.freezes = (s.freezes || 0) + 1;
+      setTimeout(() => toast("7 дней подряд: +1 заморозка серии ❄️"), 2300);
+    }
     if (state.streak.current > state.streak.best) state.streak.best = state.streak.current;
     toast("Цель дня выполнена! Серия: " + state.streak.current + " " + plural(state.streak.current, "день", "дня", "дней"));
   }
@@ -427,9 +447,11 @@
   function lessonRow(lesson, n) {
     const done = (state.lessons[lesson.id] || {}).done;
     const qn = (lesson.questions || []).length;
+    const faded = needsReview(lesson.id);
     return (
       '<a class="lesson' +
       (done ? " is-done" : "") +
+      (faded ? " is-faded" : "") +
       '" href="#/lesson/' +
       lesson.id +
       '"><div class="lesson-num">' +
@@ -444,7 +466,7 @@
       qn +
       " " +
       plural(qn, "вопрос", "вопроса", "вопросов") +
-      (done ? ' · <span class="lesson-done-tag">пройдено</span>' : "") +
+      (masteryTag(lesson.id) ? " · " + masteryTag(lesson.id) : "") +
       '</span></div><div class="lesson-arrow"><svg viewBox="0 0 24 24">' +
       ICONS.arrow +
       "</svg></div></a>"
@@ -481,7 +503,8 @@
       heroHtml() +
       ringHtml(goalPct) +
       '</div><div class="hero-stats"><div class="hero-stat"><b>' +
-      state.streak.current +
+      streakNow() +
+      (state.streak.freezes ? '<small class="frz"> ❄️' + state.streak.freezes + "</small>" : "") +
       "</b><span>дней подряд</span></div>" +
       '<div class="hero-stat"><b>' +
       tp.done +
@@ -508,14 +531,31 @@
       esc(cont.goal || "") +
       "</p></a></section>";
 
+    const dailyDone = (todayStats().daily || 0) > 0;
+    const toReview = reviewLessons().length;
+    html +=
+      '<section class="section"><a class="daily-cta' +
+      (dailyDone ? " done" : "") +
+      '" href="#/quiz/daily/1"><span class="dc-ico">' +
+      (dailyDone ? "✓" : "⚡") +
+      '</span><span class="dc-body"><b>Тренировка дня</b><span>' +
+      (dailyDone ? "сегодня уже пройдена — можно ещё раз" : "10 вопросов: ошибки, слабые темы и новое · +10 XP") +
+      "</span></span></a>" +
+      (toReview
+        ? '<a class="review-cta" href="#/review">↻ Пора повторить: ' + toReview + " " + plural(toReview, "тема", "темы", "тем") + "</a>"
+        : "") +
+      "</section>";
+
+    html += questsHtml();
+
     html +=
       '<section class="section"><div class="grid grid-2">' +
-      actionTile("#/quiz/mix/10", "⚡", "Быстрый тест", "10 вопросов") +
       actionTile("#/quiz/mistakes/all", "🎯", "Мои ошибки", due ? due + " к повтору" : "всё закрыто") +
-      actionTile("#/cards", "🃏", "Карточки", dueCards().length ? dueCards().length + " к повтору" : "термины") +
-      actionTile("#/checks", "✅", "Чек-листы", "старт, выдача, приёмка, сервер") +
-      actionTile("#/games", "🎮", "Игры", "пары, блиц, порядок шагов") +
+      actionTile("#/paths", "🧭", "Траектории", "путь к роли и сертификат") +
+      actionTile("#/cases", "🧩", "Кейсы", "решения на проекте") +
+      actionTile("#/games", "🎮", "Игры", "пары, блиц, тренажёры") +
       actionTile("#/interview", "💼", "Собеседование", INTERVIEW_SIZE + " вопросов на время") +
+      actionTile("#/cards", "🃏", "Карточки", dueCards().length ? dueCards().length + " к повтору" : "термины") +
       "</div></section>";
 
     html +=
@@ -580,7 +620,12 @@
       '%</b></div><div class="progress" style="margin-top:12px"><i style="width:' +
       tp.pct +
       '%"></i></div></div></section>' +
-      '<section class="section"><div class="grid">' +
+      (PATHS.length
+        ? '<section class="section"><div class="section-head"><h2>Траектории</h2><a href="#/paths">все</a></div><div class="path-strip">' +
+          PATHS.map(pathCard).join("") +
+          "</div></section>"
+        : "") +
+      '<section class="section"><div class="section-head"><h2>Курсы</h2></div><div class="grid">' +
       CONTENT.courses.map(courseCard).join("") +
       "</div></section>";
   }
@@ -615,6 +660,7 @@
       " уроков</span><span>" +
       qn +
       " вопросов</span></div></div></section>" +
+      (p.pct === 100 ? '<section class="section"><a class="btn primary block" href="#/cert/course/' + id + '">🎓 Курс пройден — получить сертификат</a></section>' : "") +
       '<section class="section"><div class="btn-row">' +
       '<a class="btn primary" href="#/quiz/course/' +
       id +
@@ -630,6 +676,11 @@
       '<section class="section"><div class="grid grid-2">' +
       actionTile("#/videos?course=" + id, "▶️", "Видеоуроки", videos.length + " " + plural(videos.length, "видео", "видео", "видео")) +
       actionTile("#/glossary?course=" + id, "📖", "Термины курса", terms.length + " " + plural(terms.length, "термин", "термина", "терминов")) +
+      (id === "english" ? actionTile("#/vocab", "🔊", "Словарь", VOCAB.length + " слов с озвучкой") : "") +
+      Object.keys(SIMS)
+        .filter((k) => lessonCourse[SIMS[k].lesson] === id)
+        .map((k) => actionTile("#/sim/" + k, "🎛", "Тренажёр", SIMS[k].title))
+        .join("") +
       "</div></section></div>";
   }
 
@@ -658,14 +709,19 @@
       esc(lesson.level) +
       "</span>" +
       (done ? '<span class="chip done">✓ пройден</span>' : "") +
+      (lessonLevel(id) >= 3 ? '<span class="chip done">мастер ★</span>' : lessonLevel(id) === 2 ? '<span class="chip done">освоено</span>' : "") +
       "</div><h1>" +
       esc(lesson.title) +
       "</h1>" +
       (lesson.goal ? '<div class="goal"><b>Цель урока: </b>' + esc(lesson.goal) + "</div>" : "") +
       "</section>";
 
-    (lesson.blocks || []).forEach((b) => {
-      html += '<section class="block">' + renderBlock(b) + "</section>";
+    const blocks = lesson.blocks || [];
+    const mid = blocks.length >= 4 ? Math.floor(blocks.length / 2) : -1;
+    const isEn = course.id === "english";
+    blocks.forEach((b, bi) => {
+      html += '<section class="block">' + renderBlock(b, { en: isEn }) + "</section>";
+      if (bi === mid - 1) html += inlineCheckHtml(lesson);
     });
 
     if (lesson.terms && lesson.terms.length) {
@@ -681,6 +737,9 @@
     }
 
     html += '<section class="section mt">';
+    if (needsReview(id)) {
+      html += '<a class="btn soft block mb" href="#/quiz/review/' + id + '">↻ Тема выцветает — проверка из 3 вопросов</a>';
+    }
     if (qn) {
       html +=
         '<a class="btn primary block" href="#/quiz/lesson/' +
@@ -711,17 +770,27 @@
     html += "</div></section></div>";
 
     view.innerHTML = html;
+    mountSims(view);
   }
 
-  function renderBlock(b) {
+  function renderBlock(b, opts) {
+    const en = opts && opts.en;
+    // В английском курсе у английских фраз появляется кнопка озвучки.
+    const sayItem = (i) => {
+      if (!en) return esc(i);
+      const at = i.indexOf(" — ");
+      return at > 0 ? esc(i) + speakBtn(i.slice(0, at)) : esc(i);
+    };
     switch (b.type) {
+      case "sim":
+        return simBlockHtml(b.sim);
       case "text":
         return "<p>" + esc(b.text) + "</p>";
       case "list":
         return (
           (b.title ? "<h4>" + esc(b.title) + "</h4>" : "") +
           '<ul class="bullets">' +
-          b.items.map((i) => "<li>" + esc(i) + "</li>").join("") +
+          b.items.map((i) => "<li>" + sayItem(i) + "</li>").join("") +
           "</ul>"
         );
       case "steps":
@@ -771,7 +840,7 @@
             .map(
               (r) =>
                 "<tr>" +
-                r.map((c, i) => '<td data-label="' + esc(b.head[i] || "") + '">' + esc(c) + "</td>").join("") +
+                r.map((c, i) => '<td data-label="' + esc(b.head[i] || "") + '">' + esc(c) + (en && b.head[i] === "English" ? speakBtn(c.replace(/…/g, "")) : "") + "</td>").join("") +
                 "</tr>"
             )
             .join("") +
@@ -798,6 +867,10 @@
 
     html +=
       '<section class="section"><div class="section-head"><h2>Быстрый старт</h2></div>' +
+      '<a class="menu-item" href="#/quiz/daily/1"><span class="mi-ico">🌅</span><span class="mi-body"><b>Тренировка дня</b><span class="mi-sub">ошибки, выцветающие темы, слабый курс и новое</span></span></a>' +
+      '<a class="menu-item" href="#/review"><span class="mi-ico">↻</span><span class="mi-body"><b>Пора повторить</b><span class="mi-sub">' +
+      (reviewLessons().length ? reviewLessons().length + " " + plural(reviewLessons().length, "тема выцветает", "темы выцветают", "тем выцветают") : "все темы свежие") +
+      "</span></span></a>" +
       '<a class="menu-item" href="#/quiz/mix/10"><span class="mi-ico">⚡</span><span class="mi-body"><b>Случайные 10 вопросов</b><span class="mi-sub">по всем курсам</span></span></a>' +
       '<a class="menu-item" href="#/quiz/mix/25"><span class="mi-ico">🧩</span><span class="mi-body"><b>Большой тест · 25 вопросов</b><span class="mi-sub">проверка общей подготовки</span></span></a>' +
       '<a class="menu-item" href="#/interview"><span class="mi-ico">💼</span><span class="mi-body"><b>Собеседование</b><span class="mi-sub">' +
@@ -806,6 +879,9 @@
       INTERVIEW_SECONDS / 60 +
       ' минут, разбор по направлениям</span></span></a>' +
       '<a class="menu-item" href="#/games"><span class="mi-ico">🎮</span><span class="mi-body"><b>Игры</b><span class="mi-sub">найди пару, блиц на минуту, собери порядок</span></span></a>' +
+      '<a class="menu-item" href="#/cases"><span class="mi-ico">🧩</span><span class="mi-body"><b>Кейсы с проекта</b><span class="mi-sub">' +
+      CASES.length +
+      " ситуаций с разбором решений</span></span></a>" +
       '<a class="menu-item" href="#/quiz/mistakes/all"><span class="mi-ico">🎯</span><span class="mi-body"><b>Мои ошибки</b><span class="mi-sub">' +
       (mistakesTotal
         ? due
@@ -901,6 +977,16 @@
       items = shuffle(ids.map((id) => questionById[id])).slice(0, 15);
       title = "Работа над ошибками";
       modeName = "Ошибки";
+    } else if (mode === "daily") {
+      items = dailyItems();
+      title = "Тренировка дня";
+      modeName = "Тренировка дня";
+    } else if (mode === "review") {
+      const lesson = lessonById[arg];
+      if (!lesson) return renderNotFound();
+      items = shuffle(lesson.questions || []).slice(0, 3);
+      title = "Повторение: " + lesson.title;
+      modeName = "Повторение";
     } else if (mode === "interview") {
       // Не больше трёх вопросов из одного курса — чтобы проверялась широта, а не одна тема.
       const per = {};
@@ -931,6 +1017,8 @@
       correct: 0,
       wrong: [],
       results: [],
+      run: 0,
+      lessonId: mode === "lesson" || mode === "review" ? arg : "",
       startedAt: Date.now(),
       deadline: mode === "interview" ? Date.now() + INTERVIEW_SECONDS * 1000 : 0
     };
@@ -1204,8 +1292,14 @@
     if (ok) state.xp += 3;
     bumpDay("questions", 1);
 
+    quiz.run = ok ? (quiz.run || 0) + 1 : 0;
+    if (ok) bumpDay("correct", 1);
+    const dayNow = state.days[todayKey()];
+    dayNow.bestRun = Math.max(dayNow.bestRun || 0, quiz.run);
+
     // интервальное повторение ошибок
     const m = state.mistakes[q.id];
+    if (ok && m) bumpDay("fixes", 1);
     if (ok) {
       if (m) {
         const box = Math.min(MISTAKE_HOURS.length - 1, (m.box || 0) + 1);
@@ -1215,6 +1309,7 @@
     } else {
       state.mistakes[q.id] = { box: 0, dueAt: Date.now() };
     }
+    checkQuests();
     save();
 
     const nextBtn = verdict.querySelector('[data-act="next"]');
@@ -1248,6 +1343,12 @@
     if (quiz.mode === "exam" && pct >= 80) state.xp += 25;
     state.companion.lastQuizAt = Date.now();
     state.companion.lastQuizPct = pct;
+    if (quiz.lessonId) recordLessonQuiz(quiz.lessonId, pct, quiz.mode === "review");
+    if (quiz.mode === "daily") {
+      bumpDay("daily", 1);
+      state.xp += 10;
+    }
+    checkQuests();
     const isInterview = quiz.mode === "interview";
     if (isInterview) {
       clearInterval(quizTimer);
@@ -2170,6 +2271,780 @@
     view.innerHTML = html;
   }
 
+  /* ================= освоение тем и повторение ================= */
+
+  // Урок проходит уровни «знаком → освоено → мастер». Освоенная тема через
+  // REVIEW_DAYS дней «выцветает» и просит короткую проверку из трёх вопросов.
+  const REVIEW_DAYS = 21;
+  const MASTER_GAP_DAYS = 14;
+  const DAY_MS = 86400000;
+
+  function lessonLevel(id) {
+    const m = state.mastery[id];
+    if (m && m.level) return m.level;
+    return (state.lessons[id] || {}).done ? 1 : 0;
+  }
+
+  function needsReview(id) {
+    const m = state.mastery[id];
+    return !!m && m.level >= 2 && Date.now() - (m.checkedAt || m.at || 0) > REVIEW_DAYS * DAY_MS;
+  }
+
+  function reviewLessons() {
+    return allLessons.filter((l) => needsReview(l.id));
+  }
+
+  function masteryTag(id) {
+    if (needsReview(id)) return '<span class="lesson-review-tag">пора повторить ↻</span>';
+    const lv = lessonLevel(id);
+    if (lv >= 3) return '<span class="lesson-master-tag">мастер ★</span>';
+    if (lv === 2) return '<span class="lesson-done-tag">освоено</span>';
+    if (lv === 1) return '<span class="lesson-done-tag">пройдено</span>';
+    return "";
+  }
+
+  function recordLessonQuiz(lessonId, pct, isReview) {
+    const now = Date.now();
+    const m = state.mastery[lessonId] || { level: (state.lessons[lessonId] || {}).done ? 1 : 0 };
+    m.best = Math.max(m.best || 0, pct);
+    if (isReview) {
+      if (pct >= 67) {
+        m.checkedAt = now;
+        if (m.level === 2 && now - (m.masteredAt || now) >= MASTER_GAP_DAYS * DAY_MS) {
+          m.level = 3;
+          toast("Тема на уровне «мастер» ★");
+        } else toast("Тема подтверждена — снова на месяц");
+      }
+    } else if (pct >= 80) {
+      if ((m.level || 0) < 2) {
+        m.level = 2;
+        m.masteredAt = now;
+      }
+      m.at = now;
+      m.checkedAt = now;
+    } else if (!m.level) {
+      m.level = 1;
+    }
+    state.mastery[lessonId] = m;
+  }
+
+  function renderReview() {
+    setTop("Пора повторить", "темы, которые начали забываться");
+    const list = reviewLessons();
+    view.innerHTML = list.length
+      ? '<section class="section"><div class="card"><p>Эти темы вы освоили больше трёх недель назад. Короткая проверка из трёх вопросов вернёт их в память — а со второго подтверждения тема получает уровень «мастер».</p></div></section>' +
+        '<section class="section">' +
+        list
+          .map(
+            (l) =>
+              '<a class="menu-item" href="#/quiz/review/' +
+              l.id +
+              '"><span class="mi-ico">↻</span><span class="mi-body"><b>' +
+              esc(l.title) +
+              '</b><span class="mi-sub">' +
+              esc((courseById[lessonCourse[l.id]] || {}).title || "") +
+              " · 3 вопроса</span></span></a>"
+          )
+          .join("") +
+        "</section>"
+      : '<div class="empty"><span class="em">🌱</span><b>Повторять пока нечего</b><p class="muted small mt">Тема попадает сюда через три недели после того, как вы прошли её мини-тест на 80% и выше.</p><a class="btn primary mt" href="#/quiz/daily/1">Тренировка дня</a></div>';
+  }
+
+  /* ================= тренировка дня ================= */
+
+  // 10 вопросов: ошибки к повтору, выцветающие темы, самый слабый курс и новое.
+  function dailyItems() {
+    const pick = [];
+    const seen = {};
+    const add = (q) => {
+      if (!q || seen[q.id] || pick.length >= 10) return;
+      seen[q.id] = true;
+      pick.push(q);
+    };
+    dueMistakes().slice(0, 4).forEach((id) => add(questionById[id]));
+    reviewLessons().slice(0, 2).forEach((l) => add(shuffle(l.questions || [])[0]));
+    const scored = CONTENT.courses
+      .map((c) => {
+        const st = state.byCourse[c.id];
+        return { id: c.id, acc: st && st.total >= 5 ? st.correct / st.total : 2 };
+      })
+      .sort((a, b) => a.acc - b.acc);
+    if (scored.length && scored[0].acc <= 1) shuffle(allQuestions.filter((q) => q.courseId === scored[0].id)).slice(0, 3).forEach(add);
+    shuffle(allQuestions.filter((q) => !(state.lessons[q.lessonId] || {}).done)).forEach(add);
+    shuffle(allQuestions).forEach(add);
+    return shuffle(pick);
+  }
+
+  /* ================= задания дня ================= */
+
+  const QUESTS = [
+    { id: "lesson", t: "Пройти урок", need: 1, f: "lessons" },
+    { id: "q15", t: "Ответить на 15 вопросов", need: 15, f: "questions" },
+    { id: "correct10", t: "Дать 10 верных ответов", need: 10, f: "correct" },
+    { id: "run5", t: "5 верных ответов подряд", need: 5, f: "bestRun" },
+    { id: "game", t: "Сыграть в любую игру", need: 1, f: "games" },
+    { id: "fix3", t: "Исправить 3 старые ошибки", need: 3, f: "fixes" },
+    { id: "daily", t: "Пройти тренировку дня", need: 1, f: "daily" },
+    { id: "case", t: "Разобрать кейс с проекта", need: 1, f: "cases" }
+  ];
+
+  function seedOf(key) {
+    let h = 7;
+    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) % 100003;
+    return h;
+  }
+
+  function todayQuests(key) {
+    key = key || todayKey();
+    let h = seedOf(key);
+    const pool = QUESTS.slice();
+    const out = [];
+    while (out.length < 3 && pool.length) {
+      h = (h * 1103 + 12345) % 100003;
+      out.push(pool.splice(h % pool.length, 1)[0]);
+    }
+    return out;
+  }
+
+  function weekStart(key) {
+    const p = (key || todayKey()).split("-").map(Number);
+    const d = new Date(p[0], p[1] - 1, p[2]);
+    const dow = (d.getDay() + 6) % 7;
+    return shiftDay(todayKey(d), -dow);
+  }
+
+  function weekDays(mondayKey) {
+    const out = [];
+    for (let i = 0; i < 7; i++) out.push(shiftDay(mondayKey, i));
+    return out;
+  }
+
+  function checkQuests() {
+    const key = todayKey();
+    const day = state.days[key] || {};
+    const done = state.quests[key] || [];
+    todayQuests(key).forEach((q) => {
+      if (done.indexOf(q.id) < 0 && (day[q.f] || 0) >= q.need) {
+        done.push(q.id);
+        state.xp += 10;
+        toast("Задание выполнено: " + q.t + " · +10 XP");
+      }
+    });
+    state.quests[key] = done;
+    if (done.length >= 3) {
+      const wk = weekStart(key);
+      const full = weekDays(wk).filter((k) => (state.quests[k] || []).length >= 3).length;
+      if (full >= 5 && !state.flags["chest" + wk]) {
+        state.flags["chest" + wk] = true;
+        state.xp += 50;
+        if ((state.streak.freezes || 0) < 2) state.streak.freezes = (state.streak.freezes || 0) + 1;
+        toast("Недельный сундук: +50 XP и заморозка серии ❄️");
+      }
+    }
+  }
+
+  function questsHtml() {
+    const key = todayKey();
+    const day = state.days[key] || {};
+    const done = state.quests[key] || [];
+    const wk = weekStart(key);
+    const names = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
+    const full = weekDays(wk).filter((k) => (state.quests[k] || []).length >= 3).length;
+    return (
+      '<section class="section"><div class="section-head"><h2>Задания дня</h2><span class="muted small">+10 XP за каждое</span></div><div class="card quests">' +
+      todayQuests(key)
+        .map((q) => {
+          const v = Math.min(q.need, day[q.f] || 0);
+          const ok = done.indexOf(q.id) >= 0;
+          return (
+            '<div class="quest' +
+            (ok ? " on" : "") +
+            '"><span class="q-box">' +
+            (ok ? "✓" : "") +
+            '</span><span class="q-t">' +
+            esc(q.t) +
+            '</span><span class="q-n">' +
+            (q.need > 1 ? v + "/" + q.need : ok ? "готово" : "") +
+            "</span></div>"
+          );
+        })
+        .join("") +
+      '<div class="week-row"><span class="muted small">Сундук недели: ' +
+      Math.min(full, 5) +
+      ' из 5 дней</span><div class="week-dots">' +
+      weekDays(wk)
+        .map(
+          (k, i) =>
+            '<span class="wd' +
+            ((state.quests[k] || []).length >= 3 ? " on" : "") +
+            (k === key ? " today" : "") +
+            '" title="' +
+            k +
+            '">' +
+            names[i] +
+            "</span>"
+        )
+        .join("") +
+      "</div></div></div></section>"
+    );
+  }
+
+  /* ================= серия: заморозка, календарь, напоминание ================= */
+
+  function daysBetween(a, b) {
+    const pa = a.split("-").map(Number);
+    const pb = b.split("-").map(Number);
+    return Math.round((new Date(pb[0], pb[1] - 1, pb[2]) - new Date(pa[0], pa[1] - 1, pa[2])) / DAY_MS);
+  }
+
+  // Серия, которую видит пользователь: обнуляется, если пропуск не покрыть заморозками.
+  function streakNow() {
+    const s = state.streak;
+    if (!s.last) return 0;
+    const gap = daysBetween(s.last, todayKey());
+    if (gap <= 1) return s.current;
+    return gap - 1 <= (s.freezes || 0) ? s.current : 0;
+  }
+
+  function heatmapHtml() {
+    const today = todayKey();
+    const weeks = 18;
+    const start = shiftDay(weekStart(today), -7 * (weeks - 1));
+    const goal = state.settings.goal;
+    const frozen = state.streak.frozen || [];
+    let cells = "";
+    for (let w = 0; w < weeks; w++) {
+      for (let d = 0; d < 7; d++) {
+        const k = shiftDay(start, w * 7 + d);
+        if (daysBetween(k, today) < 0) {
+          cells += '<span class="hm-c hm-future"></span>';
+          continue;
+        }
+        const q = (state.days[k] || {}).questions || 0;
+        const lv = frozen.indexOf(k) >= 0 ? "f" : q >= goal ? 3 : q >= goal / 2 ? 2 : q > 0 ? 1 : 0;
+        cells +=
+          '<span class="hm-c hm-' + lv + (k === today ? " hm-today" : "") + '" title="' + k + ": " + q + " " + plural(q, "вопрос", "вопроса", "вопросов") + (lv === "f" ? ", заморозка" : "") + '"></span>';
+      }
+    }
+    const sumWeek = (mon) => weekDays(mon).reduce((a, k) => a + ((state.days[k] || {}).questions || 0), 0);
+    const lessonsWeek = (mon) => weekDays(mon).reduce((a, k) => a + ((state.days[k] || {}).lessons || 0), 0);
+    const thisMon = weekStart(today);
+    const lastMon = shiftDay(thisMon, -7);
+    const a = sumWeek(thisMon);
+    const b = sumWeek(lastMon);
+    const diff = a - b;
+    return (
+      '<section class="section"><div class="section-head"><h2>Календарь занятий</h2><span class="muted small">' +
+      weeks +
+      ' недель</span></div><div class="card"><div class="heatmap" role="img" aria-label="Активность по дням">' +
+      cells +
+      '</div><div class="hm-legend"><span>меньше</span><span class="hm-c hm-0"></span><span class="hm-c hm-1"></span><span class="hm-c hm-2"></span><span class="hm-c hm-3"></span><span>цель</span><span class="hm-c hm-f"></span><span>заморозка</span></div>' +
+      '<div class="week-cmp"><div><b>' +
+      a +
+      "</b><span>вопросов на этой неделе</span></div><div><b>" +
+      b +
+      "</b><span>на прошлой</span></div><div><b class=\"" +
+      (diff >= 0 ? "up" : "down") +
+      '">' +
+      (diff >= 0 ? "▲ +" : "▼ ") +
+      diff +
+      "</b><span>уроков: " +
+      lessonsWeek(thisMon) +
+      " против " +
+      lessonsWeek(lastMon) +
+      "</span></div></div></div></section>" +
+      '<section class="section"><div class="section-head"><h2>Серия</h2></div><div class="card"><div class="row spread"><div><h3>🔥 ' +
+      streakNow() +
+      " " +
+      plural(streakNow(), "день", "дня", "дней") +
+      '</h3><p>Заморозки: ' +
+      "❄️".repeat(state.streak.freezes || 0) +
+      (state.streak.freezes ? "" : "нет") +
+      " · максимум две</p></div></div>" +
+      '<p class="muted small mt">Заморозка спасает серию, если пропустить день. Она выдаётся за каждые 7 дней серии подряд и за недельный сундук заданий.</p>' +
+      '<div class="remind mt"><label for="remindAt" class="muted small">Напоминание каждый день в</label><input id="remindAt" type="time" value="' +
+      esc(state.settings.remindAt || "19:00") +
+      '"><button class="btn small primary" data-act="ics">Добавить в календарь</button></div>' +
+      '<p class="muted small mt">Скачается файл события — откройте его, и телефон предложит добавить ежедневное напоминание в календарь.</p></div></section>'
+    );
+  }
+
+  function downloadIcs() {
+    const input = document.getElementById("remindAt");
+    const t = (input && input.value) || "19:00";
+    state.settings.remindAt = t;
+    save();
+    const [hh, mm] = t.split(":");
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const start = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + "T" + pad(hh) + pad(mm) + "00";
+    const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+    const url = location.origin + location.pathname;
+    const ics = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//BIM Academy//RU",
+      "BEGIN:VEVENT",
+      "UID:bim-academy-daily-" + Date.now() + "@bim-academy",
+      "DTSTAMP:" + stamp,
+      "DTSTART:" + start,
+      "DURATION:PT15M",
+      "RRULE:FREQ=DAILY",
+      "SUMMARY:BIM Academy: 10 минут практики",
+      "DESCRIPTION:Тренировка дня и задания — серия ждёт.",
+      "URL:" + url,
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:BIM Academy",
+      "TRIGGER:PT0M",
+      "END:VALARM",
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ].join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+    a.download = "bim-academy-napominanie.ics";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    toast("Файл напоминания сохранён");
+  }
+
+  /* ================= вопрос посреди урока ================= */
+
+  function inlineCheckHtml(lesson) {
+    const qi = (lesson.questions || []).findIndex((q) => q.type === "single" || q.type === "bool");
+    if (qi < 0) return "";
+    const q = lesson.questions[qi];
+    const opts = q.type === "bool" ? ["Верно", "Неверно"] : q.options;
+    return (
+      '<section class="block"><div class="inq" data-q="' +
+      esc(q.id) +
+      '"><span class="q-kind">Проверьте себя</span><b>' +
+      esc(q.q) +
+      '</b><div class="options">' +
+      opts
+        .map(
+          (o, i) =>
+            '<button class="option round" data-act="inq" data-q="' +
+            esc(q.id) +
+            '" data-i="' +
+            (q.type === "bool" ? (i === 0 ? 1 : 0) : i) +
+            '"><span class="mark">•</span><span>' +
+            esc(o) +
+            "</span></button>"
+        )
+        .join("") +
+      '</div><div class="inq-v"></div></div></section>'
+    );
+  }
+
+  function answerInline(el) {
+    const box = el.closest(".inq");
+    if (!box || box.classList.contains("answered")) return;
+    const q = questionById[el.dataset.q];
+    if (!q) return;
+    const i = Number(el.dataset.i);
+    const ok = isCorrect(q, [i], "");
+    box.classList.add("answered");
+    box.querySelectorAll(".option").forEach((b) => {
+      b.setAttribute("disabled", "disabled");
+      const v = Number(b.dataset.i);
+      const right = q.type === "bool" ? (v === 1) === q.answer : v === q.answer;
+      if (right) b.classList.add("right");
+      else if (v === i) b.classList.add("wrong");
+    });
+    box.querySelector(".inq-v").innerHTML =
+      '<div class="verdict ' + (ok ? "ok" : "no") + '"><b>' + (ok ? "Верно" : "Не совсем") + "</b>" + (q.explain ? "<p>" + esc(q.explain) + "</p>" : "") + "</div>";
+  }
+
+  /* ================= озвучка английского ================= */
+
+  const CAN_SPEAK = "speechSynthesis" in window;
+
+  function speakBtn(text) {
+    if (!CAN_SPEAK) return "";
+    return '<button class="say" data-act="say" data-t="' + esc(text) + '" aria-label="Произнести: ' + esc(text) + '">🔊</button>';
+  }
+
+  function speak(text) {
+    if (!CAN_SPEAK) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      const voices = speechSynthesis.getVoices();
+      const v = voices.filter((x) => /^en(-|_)GB/i.test(x.lang))[0] || voices.filter((x) => /^en/i.test(x.lang))[0];
+      if (v) u.voice = v;
+      u.lang = v ? v.lang : "en-GB";
+      u.rate = 0.92;
+      speechSynthesis.speak(u);
+    } catch (e) {
+      toast("Озвучка недоступна на этом устройстве");
+    }
+  }
+
+  function renderVocab(params) {
+    setTop("Словарь BIM English", VOCAB.length + " слов и фраз");
+    const q = norm((params && params.get("q")) || "");
+    const topics = { revit: "Интерфейс Revit", docs: "Документы и роли", coord: "Координация и совещания", mail: "Переписка", build: "Конструкции и системы" };
+    let html =
+      '<section class="section"><input class="search-field" id="vocabQ" type="search" placeholder="Найти слово" value="' +
+      esc((params && params.get("q")) || "") +
+      '" aria-label="Поиск по словарю"></section>' +
+      (CAN_SPEAK ? "" : '<section class="section"><p class="muted small">На этом устройстве нет голосового движка — озвучка недоступна.</p></section>');
+    Object.keys(topics).forEach((t) => {
+      const list = VOCAB.filter((v) => v.topic === t && (!q || norm(v.en + " " + v.ru).indexOf(q) >= 0));
+      if (!list.length) return;
+      html +=
+        '<section class="section"><div class="section-head"><h2>' +
+        topics[t] +
+        '</h2><span class="muted small">' +
+        list.length +
+        '</span></div><div class="card vocab">' +
+        list.map((v) => '<div class="voc"><b>' + esc(v.en) + "</b>" + speakBtn(v.en) + "<span>" + esc(v.ru) + "</span></div>").join("") +
+        "</div></section>";
+    });
+    html += '<section class="section"><button class="btn primary block" data-act="game-start" data-kind="match" data-src="en">Тренировать: найди пару</button></section>';
+    view.innerHTML = html;
+    const inp = document.getElementById("vocabQ");
+    if (inp)
+      inp.addEventListener("change", () => {
+        location.hash = "#/vocab?q=" + encodeURIComponent(inp.value);
+      });
+  }
+
+  /* ================= тренажёры ================= */
+
+  const SIMS = window.BIM_SIMS || {};
+
+  function simBlockHtml(id) {
+    const s = SIMS[id];
+    if (!s) return "";
+    return (
+      '<div class="sim" data-sim="' +
+      esc(id) +
+      '"><div class="sim-head"><span class="q-kind">Тренажёр</span><b>' +
+      esc(s.title) +
+      "</b><p>" +
+      esc(s.intro) +
+      '</p></div><div class="sim-body"></div></div>'
+    );
+  }
+
+  function mountSims(root) {
+    root.querySelectorAll(".sim[data-sim]").forEach((el) => {
+      const s = SIMS[el.dataset.sim];
+      if (s && !el.dataset.ready) {
+        el.dataset.ready = "1";
+        s.mount(el.querySelector(".sim-body"));
+      }
+    });
+  }
+
+  function renderSim(id) {
+    const s = SIMS[id];
+    if (!s) return renderNotFound();
+    setTop("Тренажёр", s.title);
+    const l = lessonById[s.lesson];
+    view.innerHTML =
+      '<section class="section">' +
+      simBlockHtml(id) +
+      "</section>" +
+      (l ? '<section class="section"><a class="btn block" href="#/lesson/' + l.id + '">Урок по теме: ' + esc(l.title) + "</a></section>" : "");
+    mountSims(view);
+  }
+
+  /* ================= кейсы с проекта ================= */
+
+  const CASES = CONTENT.cases || [];
+  let caseRun = null;
+
+  function renderCases() {
+    setTop("Кейсы с проекта", "ситуация → решение → разбор");
+    view.innerHTML =
+      '<section class="section"><div class="card"><p>Реальные рабочие ситуации. В каждой три решения подряд — после каждого видно, к чему оно приводит. Лучший результат сохраняется.</p></div></section><section class="section">' +
+      CASES.map((c) => {
+        const best = state.cases[c.id];
+        const max = c.steps.length * 2;
+        return (
+          '<a class="menu-item" href="#/case/' +
+          c.id +
+          '"><span class="mi-ico">' +
+          c.icon +
+          '</span><span class="mi-body"><b>' +
+          esc(c.title) +
+          '</b><span class="mi-sub">' +
+          esc(c.role) +
+          " · " +
+          (best == null ? "ещё не решали" : "лучший результат " + best + " из " + max) +
+          "</span></span></a>"
+        );
+      }).join("") +
+      "</section>";
+  }
+
+  function renderCase(id) {
+    const c = CASES.filter((x) => x.id === id)[0];
+    if (!c) return renderNotFound();
+    if (!caseRun || caseRun.id !== id) caseRun = { id: id, step: 0, score: 0, picked: null };
+    const r = caseRun;
+    setTop(c.title, c.role);
+    const max = c.steps.length * 2;
+    if (r.step >= c.steps.length) {
+      const pct = r.score / max;
+      const verdict = pct >= 0.85 ? "Решения уровня опытного специалиста" : pct >= 0.5 ? "Рабоче, но с потерями" : "Стоит разобрать тему ещё раз";
+      const prev = state.cases[id];
+      if (!r.saved) {
+        r.saved = true;
+        state.cases[id] = Math.max(prev || 0, r.score);
+        state.xp += r.score * 2;
+        bumpDay("cases", 1);
+        checkQuests();
+        save();
+      }
+      const l = lessonById[c.lesson];
+      view.innerHTML =
+        '<section class="section"><div class="card center"><p class="big">' +
+        r.score +
+        " из " +
+        max +
+        '</p><p class="muted">' +
+        verdict +
+        " · +" +
+        r.score * 2 +
+        " XP</p></div></section>" +
+        (l ? '<section class="section"><a class="menu-item" href="#/lesson/' + l.id + '"><span class="mi-ico">📘</span><span class="mi-body"><b>' + esc(l.title) + '</b><span class="mi-sub">урок по теме кейса</span></span></a></section>' : "") +
+        '<section class="section"><div class="btn-row"><button class="btn primary" data-act="case-again" data-id="' +
+        id +
+        '">Решить заново</button><a class="btn" href="#/cases">Все кейсы</a></div></section>';
+      return;
+    }
+    const st = c.steps[r.step];
+    let html =
+      '<div class="quiz-top"><div class="progress"><i style="width:' +
+      Math.round((r.step / c.steps.length) * 100) +
+      '%"></i></div><span class="quiz-count">' +
+      (r.step + 1) +
+      "/" +
+      c.steps.length +
+      "</span></div>" +
+      (r.step === 0 ? '<section class="section"><div class="note tip"><b>' + c.icon + " Ситуация</b><p>" + esc(c.intro) + "</p></div></section>" : "") +
+      '<section class="question"><span class="q-kind">Ваше решение</span><h2>' +
+      esc(st.text) +
+      '</h2><div class="options">' +
+      st.options
+        .map((o, i) => {
+          let cls = "option round";
+          if (r.picked !== null) {
+            if (i === r.picked) cls += o.score === 2 ? " right" : o.score === 1 ? " sel" : " wrong";
+            else if (o.score === 2) cls += " right";
+          }
+          return (
+            '<button class="' + cls + '" data-act="case-pick" data-i="' + i + '"' + (r.picked !== null ? " disabled" : "") + '><span class="mark">•</span><span>' + esc(o.t) + "</span></button>"
+          );
+        })
+        .join("") +
+      "</div>";
+    if (r.picked !== null) {
+      const o = st.options[r.picked];
+      html +=
+        '<div class="verdict ' +
+        (o.score === 2 ? "ok" : o.score === 1 ? "mid" : "no") +
+        '"><b>' +
+        (o.score === 2 ? "Сильное решение" : o.score === 1 ? "Допустимо, но с потерями" : "Так лучше не делать") +
+        "</b><p>" +
+        esc(o.why) +
+        '</p></div><button class="btn primary block mt" data-act="case-next">' +
+        (r.step + 1 < c.steps.length ? "Дальше →" : "Итог") +
+        "</button>";
+    }
+    html += "</section>";
+    view.innerHTML = html;
+  }
+
+  /* ================= траектории и сертификат ================= */
+
+  const PATHS = (CONTENT.paths || []).map((p) => Object.assign({}, p, { lessons: p.lessons.filter((id) => lessonById[id]) }));
+
+  function pathProgress(p) {
+    const done = p.lessons.filter((id) => (state.lessons[id] || {}).done).length;
+    return { done: done, total: p.lessons.length, pct: p.lessons.length ? Math.round((done / p.lessons.length) * 100) : 0 };
+  }
+
+  function pathCard(p) {
+    const pr = pathProgress(p);
+    return (
+      '<a class="card path-card' +
+      (pr.pct === 100 ? " is-done" : "") +
+      '" href="#/path/' +
+      p.id +
+      '"><div class="row spread"><div class="row"><span class="path-ico">' +
+      p.icon +
+      "</span><div><h3>" +
+      esc(p.title) +
+      '</h3><span class="muted small">' +
+      pr.total +
+      " " +
+      plural(pr.total, "урок", "урока", "уроков") +
+      "</span></div></div>" +
+      (pr.pct === 100 ? '<span class="cc-done">✓ сертификат</span>' : "<b>" + pr.pct + "%</b>") +
+      '</div><div class="progress mt"><i style="width:' +
+      pr.pct +
+      '%"></i></div></a>'
+    );
+  }
+
+  function renderPaths() {
+    setTop("Траектории", "маршрут к роли через разные курсы");
+    view.innerHTML =
+      '<section class="section"><div class="card"><p>Траектория собирает уроки из разных курсов в один маршрут к конкретной роли. Пройдёте все уроки — получите сертификат с вашим именем.</p></div></section><section class="section"><div class="grid">' +
+      PATHS.map(pathCard).join("") +
+      "</div></section>";
+  }
+
+  function renderPath(id) {
+    const p = PATHS.filter((x) => x.id === id)[0];
+    if (!p) return renderNotFound();
+    const pr = pathProgress(p);
+    setTop(p.title, "траектория · " + pr.done + "/" + pr.total);
+    const next = p.lessons.filter((lid) => !(state.lessons[lid] || {}).done)[0];
+    view.innerHTML =
+      '<section class="section"><div class="card"><div class="row"><span class="path-ico big-ico">' +
+      p.icon +
+      "</span><div><h3>" +
+      esc(p.title) +
+      "</h3><p>" +
+      esc(p.desc) +
+      '</p></div></div><div class="progress mt"><i style="width:' +
+      pr.pct +
+      '%"></i></div><div class="progress-meta"><span>' +
+      pr.done +
+      " / " +
+      pr.total +
+      " уроков</span><span>" +
+      pr.pct +
+      "%</span></div></div></section>" +
+      '<section class="section">' +
+      (pr.pct === 100
+        ? '<a class="btn primary block" href="#/cert/path/' + p.id + '">🎓 Получить сертификат</a>'
+        : next
+        ? '<a class="btn primary block" href="#/lesson/' + next + '">Следующий урок: ' + esc(lessonById[next].title) + "</a>"
+        : "") +
+      '</section><section class="section"><div class="section-head"><h2>Маршрут</h2></div>' +
+      p.lessons
+        .map((lid, i) => {
+          const l = lessonById[lid];
+          return lessonRow(l, i + 1).replace('<span>' + l.minutes + " мин", "<span>" + esc((courseById[lessonCourse[lid]] || {}).title) + " · " + l.minutes + " мин");
+        })
+        .join("") +
+      "</section>";
+  }
+
+  function certSubject(kind, id) {
+    if (kind === "path") {
+      const p = PATHS.filter((x) => x.id === id)[0];
+      return p ? { title: "Траектория «" + p.title + "»", lessons: p.lessons, back: "#/path/" + id } : null;
+    }
+    const c = courseById[id];
+    return c ? { title: "Курс «" + c.title + "»", lessons: c.lessons.map((l) => l.id), back: "#/course/" + id } : null;
+  }
+
+  function drawCert(canvas, subj, name) {
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width;
+    const H = canvas.height;
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, "#6d8cf7");
+    g.addColorStop(1, "#7c6cf5");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, 26);
+    ctx.fillRect(0, H - 26, W, 26);
+    ctx.strokeStyle = "#d9def0";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(60, 70, W - 120, H - 140);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#5b6aa8";
+    ctx.font = "700 34px -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillText("BIM ACADEMY", W / 2, 170);
+    ctx.fillStyle = "#101526";
+    ctx.font = "800 96px -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillText("Сертификат", W / 2, 300);
+    ctx.fillStyle = "#5f6884";
+    ctx.font = "400 36px -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillText("подтверждает, что", W / 2, 390);
+    ctx.fillStyle = "#4f5fd8";
+    ctx.font = "700 76px -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillText(name || "Ваше имя", W / 2, 500, W - 240);
+    ctx.fillStyle = "#5f6884";
+    ctx.font = "400 36px -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillText("полностью прошёл(а) программу", W / 2, 590);
+    ctx.fillStyle = "#101526";
+    ctx.font = "700 48px -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillText(subj.title, W / 2, 670, W - 240);
+    ctx.fillStyle = "#5f6884";
+    ctx.font = "400 32px -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillText(
+      subj.lessons.length + " " + plural(subj.lessons.length, "урок", "урока", "уроков") + " · " + new Date().toLocaleDateString("ru-RU"),
+      W / 2,
+      760
+    );
+    ctx.font = "120px serif";
+    ctx.fillText("🎓", W / 2, 940);
+  }
+
+  function renderCert(kind, id) {
+    const subj = certSubject(kind, id);
+    if (!subj) return renderNotFound();
+    setTop("Сертификат", subj.title);
+    const left = subj.lessons.filter((lid) => !(state.lessons[lid] || {}).done);
+    if (left.length) {
+      view.innerHTML =
+        '<div class="empty"><span class="em">🎓</span><b>Осталось ' +
+        left.length +
+        " " +
+        plural(left.length, "урок", "урока", "уроков") +
+        '</b><p class="muted small mt">Сертификат открывается, когда все уроки программы отмечены пройденными.</p><a class="btn primary mt" href="#/lesson/' +
+        left[0] +
+        '">Продолжить</a></div>';
+      return;
+    }
+    state.flags.cert = true;
+    save();
+    view.innerHTML =
+      '<section class="section"><label class="muted small" for="certName">Имя на сертификате</label><input class="answer-input mt" id="certName" type="text" autocomplete="name" placeholder="Например, Анна Смирнова" value="' +
+      esc(state.settings.name || "") +
+      '"></section><section class="section"><canvas id="certCanvas" class="cert-canvas" width="1600" height="1130"></canvas></section>' +
+      '<section class="section"><div class="btn-row"><button class="btn primary" data-act="cert-save" data-kind="' +
+      kind +
+      '" data-id="' +
+      esc(id) +
+      '">Сохранить картинку</button><a class="btn" href="' +
+      subj.back +
+      '">Назад</a></div></section>';
+    const canvas = document.getElementById("certCanvas");
+    const input = document.getElementById("certName");
+    drawCert(canvas, subj, state.settings.name);
+    input.addEventListener("input", () => {
+      state.settings.name = input.value.trim();
+      save();
+      drawCert(canvas, subj, state.settings.name);
+    });
+  }
+
+  function saveCert() {
+    const canvas = document.getElementById("certCanvas");
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "bim-academy-sertifikat.png";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+      toast("Сертификат сохранён");
+    }, "image/png");
+  }
+
   /* ================= компаньон на главной ================= */
 
   // Герой живёт в карточке на главной: состояние зависит от времени суток,
@@ -2215,7 +3090,7 @@
     else if (ctx.left) list.push("До цели дня " + ctx.left + " " + plural(ctx.left, "вопрос", "вопроса", "вопросов") + ". Справимся?");
     if (ctx.hour >= 23 || ctx.hour < 6) list.push("Уже поздно. Отдых — тоже часть обучения.");
     else if (ctx.hour < 10) list.push("Доброе утро! Пара вопросов к кофе?");
-    if (state.streak.current >= 2) list.push("Серия " + state.streak.current + " " + plural(state.streak.current, "день", "дня", "дней") + " подряд — не прерывай!");
+    if (streakNow() >= 2) list.push("Серия " + streakNow() + " " + plural(streakNow(), "день", "дня", "дней") + " подряд — не прерывай!");
     return list.concat(ch.phrases);
   }
 
@@ -2498,6 +3373,8 @@
       state.games.blitzBest[g.src] = Math.max(prev, g.correct);
       state.xp += g.correct;
     }
+    bumpDay("games", 1);
+    checkQuests();
     save();
     renderGames();
     window.scrollTo(0, 0);
@@ -2575,8 +3452,18 @@
       "</section>";
 
     html +=
+      '<section class="section"><div class="section-head"><h2>🎛 Тренажёры</h2></div>' +
+      '<p class="muted small">Двигайте ползунки — схема и вывод пересчитываются сразу.</p>' +
+      Object.keys(SIMS)
+        .map((k) => gameTile("#/sim/" + k, "🎛", SIMS[k].title, (lessonById[SIMS[k].lesson] || {}).title || ""))
+        .join("") +
+      "</section>";
+
+    html +=
       '<section class="section"><div class="section-head"><h2>Ещё тренировки</h2></div>' +
       gameTile("#/interview", "💼", "Собеседование", INTERVIEW_SIZE + " вопросов за " + INTERVIEW_SECONDS / 60 + " минут") +
+      gameTile("#/cases", "🧩", "Кейсы с проекта", CASES.length + " ситуаций с разбором") +
+      gameTile("#/vocab", "🔊", "Словарь с озвучкой", VOCAB.length + " слов и фраз") +
       gameTile("#/cards", "🃏", "Карточки терминов", "повторение по интервалам") +
       gameTile("#/drill", "⌨️", "Тренажёр клавиш", "сочетания на скорость") +
       "</section>";
@@ -3287,11 +4174,12 @@
       '<section class="section"><div class="grid grid-2">' +
       statTile(tp.done + "/" + tp.total, "уроков пройдено") +
       statTile(state.answers.total, "ответов в тестах") +
-      statTile(state.streak.current, "дней подряд") +
+      statTile(streakNow(), "дней подряд") +
       statTile(state.streak.best, "лучшая серия") +
       statTile(t.questions, "вопросов сегодня") +
       statTile(Object.keys(state.mistakes).filter((id) => questionById[id]).length, "ошибок в работе") +
-      "</div></section>";
+      "</div></section>" +
+      heatmapHtml();
 
     html +=
       '<section class="section"><div class="section-head"><h2>Достижения</h2><span class="muted small">' +
@@ -3323,6 +4211,9 @@
       WARNINGS.length +
       " разборов: что значит и как чинить</span></span></a>" +
       '<a class="menu-item" href="#/games"><span class="mi-ico">🎮</span><span class="mi-body"><b>Игры</b><span class="mi-sub">найди пару, блиц, собери порядок</span></span></a>' +
+      '<a class="menu-item" href="#/paths"><span class="mi-ico">🧭</span><span class="mi-body"><b>Траектории</b><span class="mi-sub">маршрут к роли и сертификат</span></span></a>' +
+      '<a class="menu-item" href="#/cases"><span class="mi-ico">🧩</span><span class="mi-body"><b>Кейсы с проекта</b><span class="mi-sub">ситуации с разбором решений</span></span></a>' +
+      '<a class="menu-item" href="#/vocab"><span class="mi-ico">🔊</span><span class="mi-body"><b>Словарь BIM English</b><span class="mi-sub">слова и фразы с озвучкой</span></span></a>' +
       '<a class="menu-item" href="#/interview"><span class="mi-ico">💼</span><span class="mi-body"><b>Собеседование</b><span class="mi-sub">случайные вопросы на время</span></span></a>' +
       '<a class="menu-item" href="#/cards"><span class="mi-ico">🃏</span><span class="mi-body"><b>Карточки терминов</b><span class="mi-sub">' +
       (dueCards().length ? dueCards().length + " к повтору" : "повторение по интервалам") +
@@ -3488,6 +4379,7 @@
         state.xp += 12;
         bumpDay("lessons", 1);
         toast("Урок пройден. +12 XP");
+        checkQuests();
       }
       save();
       renderLesson(id);
@@ -3508,6 +4400,34 @@
       return;
     }
     if (act === "hero-tap") return heroSay();
+    if (act === "inq") return answerInline(el);
+    if (act === "say") {
+      e.preventDefault();
+      return speak(el.dataset.t);
+    }
+    if (act === "ics") return downloadIcs();
+    if (act === "cert-save") return saveCert();
+    if (act === "case-pick") {
+      if (!caseRun || caseRun.picked !== null) return;
+      const c = CASES.filter((x) => x.id === caseRun.id)[0];
+      caseRun.picked = Number(el.dataset.i);
+      caseRun.score += c.steps[caseRun.step].options[caseRun.picked].score;
+      return renderCase(caseRun.id);
+    }
+    if (act === "case-next") {
+      if (!caseRun) return;
+      caseRun.step++;
+      caseRun.picked = null;
+      renderCase(caseRun.id);
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (act === "case-again") {
+      caseRun = null;
+      renderCase(el.dataset.id);
+      window.scrollTo(0, 0);
+      return;
+    }
     if (act === "hero-pick") {
       state.settings.hero = el.dataset.id;
       save();
@@ -3946,6 +4866,31 @@
         break;
       case "interview":
         renderInterview();
+        break;
+      case "review":
+        renderReview();
+        break;
+      case "vocab":
+        renderVocab(params);
+        break;
+      case "sim":
+        renderSim(a);
+        break;
+      case "cases":
+        renderCases();
+        break;
+      case "case":
+        caseRun = null;
+        renderCase(a);
+        break;
+      case "paths":
+        renderPaths();
+        break;
+      case "path":
+        renderPath(a);
+        break;
+      case "cert":
+        renderCert(a, b);
         break;
       case "bookmarks":
         renderBookmarks();

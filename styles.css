@@ -1054,3 +1054,155 @@ body.no-scroll { overflow: hidden; }
 .hp-art { width: 100%; max-width: 78px; border-radius: 12px; background: var(--bg-soft); color: var(--accent); padding: 4px 6px 0; }
 .hp-art .px-svg { width: 86%; margin: 4px auto 0; }
 .hp-none { display: grid; place-items: center; aspect-ratio: 160 / 150; font-size: 26px; padding: 0; }
+
+/* ---------- Освоение тем ---------- */
+.mb { margin-bottom: 10px; }
+.lesson-master-tag { color: var(--warn); font-weight: 700; }
+.lesson-review-tag { color: var(--accent); font-weight: 700; }
+.lesson.is-faded { opacity: 0.72; filter: saturate(0.55); }
+.lesson.is-faded::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent); opacity: 0.6; }
+
+/* ---------- Тренировка дня и задания ---------- */
+.daily-cta {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: var(--radius);
+  background: var(--surface); border: 1.5px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--text); text-decoration: none; box-shadow: var(--shadow-soft);
+}
+.daily-cta.done { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+.dc-ico { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 14px; font-size: 22px; font-weight: 800;
+  background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.daily-cta.done .dc-ico { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.dc-body b { display: block; font-size: 16px; }
+.dc-body span { font-size: 13px; color: var(--muted); }
+.review-cta { display: block; margin-top: 8px; padding: 10px 14px; border-radius: 14px; text-decoration: none; font-weight: 700; font-size: 14px;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.quests { display: grid; gap: 10px; }
+.quest { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: center; font-size: 14.5px; }
+.q-box { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--border); display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #fff; }
+.quest.on .q-box { background: var(--ok); border-color: var(--ok); }
+.quest.on .q-t { color: var(--muted); text-decoration: line-through; }
+.q-n { font-size: 12.5px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.week-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.week-dots { display: flex; gap: 4px; }
+.wd { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; font-size: 10.5px; font-weight: 700; background: var(--bg-soft); color: var(--muted); }
+.wd.on { background: var(--ok); color: #fff; }
+.wd.today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hero-stat .frz { font-size: 11px; font-weight: 700; }
+
+/* ---------- Календарь занятий ---------- */
+.heatmap { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 3px; justify-content: start; overflow-x: auto; padding-bottom: 2px; }
+.hm-c { width: 14px; height: 14px; border-radius: 3px; background: var(--bg-soft); display: inline-block; }
+.hm-1 { background: color-mix(in srgb, var(--ok) 30%, var(--bg-soft)); }
+.hm-2 { background: color-mix(in srgb, var(--ok) 60%, var(--bg-soft)); }
+.hm-3 { background: var(--ok); }
+.hm-f { background: #7ec8ff; }
+.hm-future { background: transparent; }
+.hm-today { outline: 2px solid var(--accent); outline-offset: 0; }
+.hm-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 10px; font-size: 11.5px; color: var(--muted); }
+.hm-legend .hm-c { width: 11px; height: 11px; }
+.week-cmp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.week-cmp div { background: var(--surface-2); border-radius: 12px; padding: 9px 10px; }
+.week-cmp b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+.week-cmp b.up { color: var(--ok); }
+.week-cmp b.down { color: var(--bad); }
+.week-cmp span { font-size: 11.5px; color: var(--muted); }
+.remind { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.remind input[type="time"] { font: inherit; padding: 7px 10px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); }
+
+/* ---------- Вопрос посреди урока ---------- */
+.inq { padding: 14px; border-radius: 18px; border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--border)); background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.inq > b { display: block; margin: 6px 0 12px; font-size: 15.5px; line-height: 1.35; }
+.inq .q-kind { font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); }
+.inq-v .verdict { margin-top: 10px; }
+.verdict.mid { background: color-mix(in srgb, var(--warn) 13%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); }
+.verdict.mid b { color: var(--warn); }
+
+/* ---------- Озвучка и словарь ---------- */
+.say { border: 0; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border-radius: 8px; padding: 1px 6px; margin-left: 6px; font-size: 13px; cursor: pointer; vertical-align: 1px; }
+.say:active { transform: scale(0.94); }
+.vocab { display: grid; gap: 0; padding-top: 4px; padding-bottom: 4px; }
+.voc { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 4px 6px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.voc:last-child { border-bottom: 0; }
+.voc span { justify-self: end; text-align: right; color: var(--muted); font-size: 13.5px; }
+
+/* ---------- Тренажёры ---------- */
+.sim { border-radius: 20px; border: 1.5px solid color-mix(in srgb, var(--accent) 40%, var(--border)); background: var(--surface); overflow: hidden; }
+.sim-head { padding: 14px 14px 4px; }
+.sim-head .q-kind { font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); }
+.sim-head b { display: block; font-size: 16px; margin-top: 4px; }
+.sim-head p { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; }
+.sim-body { padding: 10px 14px 14px; }
+.sim-stage { border-radius: 14px; overflow: hidden; border: 1px solid var(--border); }
+.sim-svg { display: block; width: 100%; height: auto; }
+.sim-controls { display: grid; gap: 4px; margin-top: 12px; }
+.sim-row { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--muted); margin-top: 6px; }
+.sim-row b { color: var(--text); font-variant-numeric: tabular-nums; }
+.sim-range { width: 100%; accent-color: var(--accent); }
+.sim-ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); padding: 0 2px; }
+.sim-out { margin-top: 12px; }
+.sim-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.sim-list li { display: grid; grid-template-columns: 12px auto 1fr; gap: 8px; align-items: center; font-size: 13.5px; }
+.sim-list li span:last-child { color: var(--muted); }
+.sim-dot { width: 12px; height: 12px; border-radius: 4px; }
+.sim-note { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.sim-ok { margin: 10px 0 0; font-size: 13.5px; color: var(--ok); font-weight: 600; }
+.sim-task { margin: 0 0 10px; padding: 9px 12px; border-radius: 12px; font-size: 13.5px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.sim-verdict { padding: 12px 14px; border-radius: 14px; }
+.sim-verdict b { display: block; margin-bottom: 4px; }
+.sim-verdict p { margin: 4px 0 0; font-size: 13.5px; }
+.sim-v-ok { background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.sim-v-ok b { color: var(--ok); }
+.sim-v-warn { background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.sim-v-warn b { color: var(--warn); }
+.sim-v-bad { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.sim-v-bad b { color: var(--bad); }
+.sim-lod { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 12px; align-items: start; }
+@media (max-width: 480px) { .sim-lod { grid-template-columns: minmax(0, 1fr); } }
+/* элементы схем тренажёров */
+.sim-bg { fill: var(--surface-2); }
+.sim-band { fill: color-mix(in srgb, var(--accent) 10%, transparent); }
+.sim-band2 { fill: color-mix(in srgb, var(--warn) 9%, transparent); }
+.sim-slab { fill: color-mix(in srgb, var(--muted) 45%, var(--surface)); }
+.sim-obj { stroke-width: 1.4; }
+.sim-cut { fill: var(--text); stroke: var(--text); }
+.sim-proj { fill: color-mix(in srgb, var(--accent) 35%, var(--surface)); stroke: var(--accent); }
+.sim-beyond { fill: color-mix(in srgb, var(--warn) 30%, var(--surface)); stroke: var(--warn); stroke-dasharray: 3 2; }
+.sim-hidden { fill: transparent; stroke: var(--muted); stroke-dasharray: 2 3; opacity: 0.6; }
+.sim-win { stroke-width: 1.4; }
+.sim-win.sim-cut { fill: color-mix(in srgb, #5fe1ff 55%, var(--surface)); stroke: var(--text); stroke-width: 2.4; }
+.sim-dot.sim-cut { background: var(--text); }
+.sim-dot.sim-proj { background: var(--accent); }
+.sim-dot.sim-beyond { background: var(--warn); }
+.sim-dot.sim-hidden { background: transparent; border: 1.5px dashed var(--muted); }
+.sim-l-top, .sim-l-bot, .sim-l-cut, .sim-l-depth { stroke-width: 1.5; }
+.sim-l-top { stroke: var(--accent); stroke-dasharray: 6 3; }
+.sim-l-cut { stroke: var(--bad); stroke-width: 2.2; }
+.sim-l-bot { stroke: var(--accent); stroke-dasharray: 6 3; }
+.sim-l-depth { stroke: var(--warn); stroke-dasharray: 2 3; }
+.sim-lbl { fill: var(--muted); font: 600 10px var(--font); }
+.sim-clr { fill: none; stroke: var(--warn); stroke-dasharray: 4 3; stroke-width: 1.5; }
+.sim-duct { fill: color-mix(in srgb, var(--accent) 25%, var(--surface)); stroke: var(--accent); stroke-width: 2; }
+.sim-pipe { stroke-width: 2; }
+.sim-st-ok { fill: color-mix(in srgb, var(--ok) 25%, var(--surface)); stroke: var(--ok); }
+.sim-st-warn { fill: color-mix(in srgb, var(--warn) 30%, var(--surface)); stroke: var(--warn); }
+.sim-st-bad { fill: color-mix(in srgb, var(--bad) 30%, var(--surface)); stroke: var(--bad); }
+.sim-mass { fill: color-mix(in srgb, var(--accent) 18%, transparent); stroke: var(--accent); stroke-dasharray: 5 4; stroke-width: 1.5; }
+.sim-frame { fill: color-mix(in srgb, var(--muted) 30%, var(--surface)); stroke: var(--text); stroke-width: 1.5; }
+.sim-leaf { fill: color-mix(in srgb, var(--accent) 25%, var(--surface)); stroke: var(--text); stroke-width: 1.5; }
+.sim-handle { fill: var(--text); }
+.sim-swing { fill: none; stroke: var(--muted); stroke-dasharray: 4 3; stroke-width: 1.2; }
+.sim-trim { fill: none; stroke: var(--warn); stroke-width: 2; }
+.sim-hw { fill: var(--warn); }
+.sim-tag { fill: var(--surface); stroke: var(--ok); stroke-width: 1.5; }
+.sim-lbl-tag { fill: var(--ok); }
+
+/* ---------- Траектории и сертификат ---------- */
+.path-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 78%); gap: 10px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x mandatory; }
+.path-strip .path-card { scroll-snap-align: start; }
+.path-card { display: block; text-decoration: none; color: var(--text); }
+.path-card h3 { margin: 0; font-size: 15.5px; }
+.path-card .row { gap: 10px; }
+.path-card.is-done { border-color: color-mix(in srgb, var(--ok) 40%, var(--border)); }
+.path-ico { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; font-size: 22px; background: var(--bg-soft); }
+.big-ico { width: 52px; height: 52px; font-size: 28px; }
+.cert-canvas { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--shadow-soft); }
