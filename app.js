@@ -2489,7 +2489,7 @@
     if (!window.supabase || !window.supabase.createClient) return;
     try {
       sb = window.supabase.createClient(SYNC_URL, SYNC_KEY, {
-        auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: "bim-academy-auth" }
+        auth: { flowType: "implicit", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: "bim-academy-auth" }
       });
     } catch (e) {
       sb = null;
@@ -2500,8 +2500,11 @@
       const was = syncUser ? syncUser.id : null;
       syncUser = u;
       if (u && u.id !== was) {
-        // после входа по ссылке из письма убираем ?code= из адреса
-        if (location.search) history.replaceState(null, "", location.pathname + location.hash);
+        // после входа по ссылке из письма убираем токены из адреса
+        if (/access_token=/.test(location.hash) || location.search) {
+          history.replaceState(null, "", location.pathname + "#/more");
+          route();
+        }
         setTimeout(() => {
           syncNow();
           subscribeSync();
@@ -2550,9 +2553,9 @@
       (otpEmail
         ? '<p class="mt"><b>Код отправлен на ' +
           esc(otpEmail) +
-          '</b></p><input class="answer-input mt" id="otpCode" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="Код из письма">' +
+          '</b></p><input class="answer-input mt" id="otpCode" type="text" autocomplete="one-time-code" placeholder="Код или ссылка из письма">' +
           '<div class="btn-row mt"><button class="btn primary" data-act="sync-verify">Войти</button><button class="btn" data-act="sync-reset">Другая почта</button></div>' +
-          '<p class="muted small mt">Если в письме ссылка, а не код, — откройте её на этом же устройстве. Письмо может попасть в «Спам».</p>'
+          '<p class="muted small mt">В письме ссылка «Log In»? Нажмите на неё и удерживайте → «Скопировать ссылку», вставьте сюда и нажмите «Войти». Письмо может попасть в «Спам».</p>'
         : '<input class="answer-input mt" id="syncEmail" type="email" autocomplete="email" placeholder="you@example.ru">' +
           '<button class="btn primary block mt" data-act="sync-send">Получить код на почту</button>') +
       '<p class="muted small mt">Прогресс с этого устройства не пропадёт: при входе он объединится с тем, что уже есть в облаке.</p></div></section>'
@@ -2587,12 +2590,31 @@
     renderMore();
   }
 
+  // Принимает и шестизначный код, и ссылку из письма целиком.
+  function parseEmailLink(text) {
+    const m = text.match(/https?:\/\/\S+/);
+    if (!m) return null;
+    try {
+      const u = new URL(m[0].replace(/&amp;/g, "&"));
+      const token = u.searchParams.get("token") || u.searchParams.get("token_hash");
+      if (!token) return null;
+      return { token_hash: token, type: u.searchParams.get("type") || "magiclink" };
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function syncVerify() {
     const input = document.getElementById("otpCode");
-    const token = ((input && input.value) || "").replace(/\s/g, "");
-    if (!token) return toast("Введите код из письма");
-    const { error } = await sb.auth.verifyOtp({ email: otpEmail, token: token, type: "email" });
-    if (error) return toast("Код не подошёл: " + error.message);
+    const raw = ((input && input.value) || "").trim();
+    if (!raw) return toast("Вставьте код или ссылку из письма");
+    const link = parseEmailLink(raw);
+    const token = raw.replace(/\s/g, "");
+    if (!link && !/^\d{6,10}$/.test(token)) return toast("Это не похоже на код или ссылку из письма");
+    const { error } = link
+      ? await sb.auth.verifyOtp({ token_hash: link.token_hash, type: link.type })
+      : await sb.auth.verifyOtp({ email: otpEmail, token: token, type: "email" });
+    if (error) return toast((link ? "Ссылка не подошла: " : "Код не подошёл: ") + error.message + ". Запросите новое письмо — ссылка одноразовая и живёт около часа.");
     otpEmail = "";
     toast("Вход выполнен — объединяю прогресс");
   }
@@ -5148,6 +5170,16 @@
   const TAB_ROUTES = { home: "home", courses: "courses", tests: "tests", videos: "videos", news: "news", more: "more" };
 
   function route() {
+    if (/access_token=|error_description=/.test(location.hash)) {
+      const err = /error_description=([^&]+)/.exec(location.hash);
+      setTop("Вход", "синхронизация");
+      view.innerHTML = err
+        ? '<div class="empty"><span class="em">⚠️</span><b>Ссылка не сработала</b><p class="muted small mt">' +
+          esc(decodeURIComponent(err[1].replace(/\+/g, " "))) +
+          '</p><a class="btn primary mt" href="#/more">Запросить новое письмо</a></div>'
+        : '<div class="empty"><span class="em">☁️</span><b>Выполняю вход…</b></div>';
+      return;
+    }
     const [name, a, b, params] = currentRoute();
     closeZoom();
     if (name !== "games" && game) stopGame();
