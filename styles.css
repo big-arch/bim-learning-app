@@ -1206,3 +1206,12 @@ body.no-scroll { overflow: hidden; }
 .path-ico { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; font-size: 22px; background: var(--bg-soft); }
 .big-ico { width: 52px; height: 52px; font-size: 28px; }
 .cert-canvas { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--shadow-soft); }
+
+/* ---------- Синхронизация ---------- */
+.sync-mail { overflow-wrap: anywhere; }
+.sync-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.sync-dot.ok { background: var(--ok); }
+.sync-dot.syncing { background: var(--accent); animation: syncPulse 1s ease-in-out infinite; }
+.sync-dot.error { background: var(--bad); }
+.sync-dot.offline { background: var(--warn); }
+@keyframes syncPulse { 50% { opacity: 0.3; } }

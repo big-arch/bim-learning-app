@@ -171,12 +171,23 @@
     }
   }
 
-  function save() {
+  function persist() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(state));
     } catch (e) {
       /* приватный режим — просто работаем без сохранения */
     }
+  }
+
+  // Пока применяются изменения с другого устройства, перерисовка экрана не должна
+  // отправлять их обратно — иначе устройства перекидывались бы данными бесконечно.
+  let applyingRemote = false;
+
+  function save() {
+    if (applyingRemote) return persist();
+    state.updatedAt = Date.now();
+    persist();
+    schedulePush();
   }
 
   /* ================= индексы контента ================= */
@@ -2271,6 +2282,321 @@
     view.innerHTML = html;
   }
 
+  /* ================= синхронизация между устройствами ================= */
+
+  // Прогресс хранится локально и в Supabase. При каждом сохранении изменения
+  // отправляются в облако, а другие открытые устройства получают их сразу.
+  // Состояния не перезаписываются, а объединяются: ничего из сделанного офлайн не теряется.
+  const SYNC_URL = "https://ucwtelledxfporffbykv.supabase.co";
+  const SYNC_KEY = "sb_publishable_iAsRYmI2xmJ_CIXvUqiprQ_e3bY2cQJ";
+  const DEVICE_KEY = "bim-academy-device";
+  let sb = null;
+  let syncUser = null;
+  let syncChannel = null;
+  let pushTimer = null;
+  let syncBusy = false;
+  let syncAgain = false;
+  let syncInfo = { status: "off", at: 0, error: "" };
+  let otpEmail = "";
+
+  const deviceId = (() => {
+    try {
+      let id = localStorage.getItem(DEVICE_KEY);
+      if (!id) {
+        id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem(DEVICE_KEY, id);
+      }
+      return id;
+    } catch (e) {
+      return "dev-" + Math.random().toString(36).slice(2);
+    }
+  })();
+
+  const num = (x) => (typeof x === "number" && isFinite(x) ? x : 0);
+
+  function mergeMap(a, b, pick) {
+    const out = Object.assign({}, b || {}, a || {});
+    Object.keys(out).forEach((k) => {
+      if (a && b && k in a && k in b) out[k] = pick(a[k], b[k], k);
+    });
+    return out;
+  }
+
+  function unionBy(a, b, key) {
+    const seen = {};
+    const out = [];
+    (a || []).concat(b || []).forEach((x) => {
+      const k = key(x);
+      if (seen[k]) return;
+      seen[k] = true;
+      out.push(x);
+    });
+    return out;
+  }
+
+  // Объединение двух состояний. Счётчики берутся по максимуму, наборы — объединением,
+  // настройки и «текущие» поля — из более свежего состояния.
+  function mergeStates(a, b) {
+    if (!b || typeof b !== "object") return a;
+    if (!a || typeof a !== "object") return b;
+    // Сброс прогресса на любом устройстве побеждает всё, что было до него.
+    if (num(a.resetAt) !== num(b.resetAt)) return num(a.resetAt) > num(b.resetAt) ? a : b;
+    const A = Object.assign(defaultState(), a);
+    const B = Object.assign(defaultState(), b);
+    const aNew = num(A.updatedAt) >= num(B.updatedAt);
+    const N = aNew ? A : B;
+    const O = aNew ? B : A;
+    const out = Object.assign({}, O, N);
+
+    out.lessons = mergeMap(A.lessons, B.lessons, (x, y) => (num(x.at) >= num(y.at) ? x : y));
+    out.mastery = mergeMap(A.mastery, B.mastery, (x, y) => ({
+      level: Math.max(num(x.level), num(y.level)),
+      best: Math.max(num(x.best), num(y.best)),
+      masteredAt: Math.min(x.masteredAt || Infinity, y.masteredAt || Infinity) === Infinity ? undefined : Math.min(x.masteredAt || Infinity, y.masteredAt || Infinity),
+      at: Math.max(num(x.at), num(y.at)),
+      checkedAt: Math.max(num(x.checkedAt), num(y.checkedAt))
+    }));
+    out.answers = { total: Math.max(num(A.answers.total), num(B.answers.total)), correct: Math.max(num(A.answers.correct), num(B.answers.correct)) };
+    out.byCourse = mergeMap(A.byCourse, B.byCourse, (x, y) => (num(x.total) >= num(y.total) ? x : y));
+    out.mistakes = mergeMap(A.mistakes, B.mistakes, (x, y) => (num(x.box) > num(y.box) ? x : num(y.box) > num(x.box) ? y : num(x.dueAt) >= num(y.dueAt) ? x : y));
+    out.history = unionBy(A.history, B.history, (h) => h.at + "|" + h.title)
+      .sort((x, y) => y.at - x.at)
+      .slice(0, 30);
+    out.days = mergeMap(A.days, B.days, (x, y) => {
+      const d = Object.assign({}, x, y);
+      Object.keys(d).forEach((k) => (d[k] = Math.max(num(x[k]), num(y[k]))));
+      return d;
+    });
+    const sA = A.streak;
+    const sB = B.streak;
+    const sN = (sA.last || "") > (sB.last || "") || ((sA.last || "") === (sB.last || "") && num(sA.current) >= num(sB.current)) ? sA : sB;
+    out.streak = Object.assign({}, sN, {
+      best: Math.max(num(sA.best), num(sB.best)),
+      frozen: unionBy(sA.frozen, sB.frozen, (k) => k).slice(-60)
+    });
+    out.settings = Object.assign({}, O.settings, N.settings);
+    out.myVideos = unionBy(N.myVideos, O.myVideos, (v) => v.url || v.title);
+    out.mySources = unionBy(N.mySources, O.mySources, (v) => v.id || v.url);
+    out.checkProjects = unionBy(N.checkProjects, O.checkProjects, (p) => p.id);
+    out.checkDone = mergeMap(A.checkDone, B.checkDone, (x, y) => Object.assign({}, aNew ? y : x, aNew ? x : y));
+    out.cards = Object.assign({}, O.cards, N.cards);
+    out.terms = unionBy(A.terms, B.terms, (t) => t);
+    out.flags = mergeMap(A.flags, B.flags, (x, y) => x || y);
+    const gA = Object.assign({ blitzBest: {}, matchBest: {} }, A.games);
+    const gB = Object.assign({ blitzBest: {}, matchBest: {} }, B.games);
+    out.games = {
+      played: Math.max(num(gA.played), num(gB.played)),
+      interviewBest: Math.max(num(gA.interviewBest), num(gB.interviewBest)),
+      orderSolved: Math.max(num(gA.orderSolved), num(gB.orderSolved)),
+      blitzBest: mergeMap(gA.blitzBest, gB.blitzBest, (x, y) => Math.max(num(x), num(y))),
+      matchBest: mergeMap(gA.matchBest, gB.matchBest, (x, y) => Math.min(num(x) || Infinity, num(y) || Infinity))
+    };
+    out.quests = mergeMap(A.quests, B.quests, (x, y) => unionBy(x, y, (q) => q));
+    out.cases = mergeMap(A.cases, B.cases, (x, y) => Math.max(num(x), num(y)));
+    out.xp = Math.max(num(A.xp), num(B.xp));
+    out.updatedAt = Math.max(num(A.updatedAt), num(B.updatedAt));
+    return out;
+  }
+
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+
+  function syncReady() {
+    return !!(sb && syncUser);
+  }
+
+  function schedulePush() {
+    if (!syncReady()) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(syncNow, 2500);
+  }
+
+  // Забрать облачную версию, объединить с локальной и отправить результат обратно.
+  async function syncNow() {
+    if (!syncReady()) return;
+    if (syncBusy) {
+      syncAgain = true;
+      return;
+    }
+    if (!navigator.onLine) {
+      syncInfo = { status: "offline", at: syncInfo.at, error: "" };
+      return refreshSyncUi();
+    }
+    syncBusy = true;
+    syncInfo.status = "syncing";
+    refreshSyncUi();
+    try {
+      const { data, error } = await sb.from("progress").select("state").eq("user_id", syncUser.id).maybeSingle();
+      if (error) throw error;
+      const remote = data ? data.state : null;
+      const merged = remote ? mergeStates(state, remote) : state;
+      if (!same(merged, state)) applyState(merged);
+      if (!remote || !same(merged, remote)) {
+        const up = await sb.from("progress").upsert({ user_id: syncUser.id, state: merged, device: deviceId, updated_at: new Date().toISOString() });
+        if (up.error) throw up.error;
+      }
+      syncInfo = { status: "ok", at: Date.now(), error: "" };
+    } catch (e) {
+      syncInfo = { status: "error", at: syncInfo.at, error: (e && e.message) || "ошибка сети" };
+    }
+    syncBusy = false;
+    refreshSyncUi();
+    if (syncAgain) {
+      syncAgain = false;
+      schedulePush();
+    }
+  }
+
+  // Новое состояние пришло с другого устройства: сохраняем и, если можно, перерисовываем экран.
+  function applyState(next) {
+    state = next;
+    persist();
+    applyingRemote = true;
+    try {
+      applyTheme();
+      const [name] = currentRoute();
+      const busy = quiz || game || caseRun || name === "quiz" || name === "checks";
+      if (!busy) route();
+    } finally {
+      applyingRemote = false;
+    }
+  }
+
+  function subscribeSync() {
+    if (!syncReady() || syncChannel) return;
+    syncChannel = sb
+      .channel("progress-" + syncUser.id)
+      .on("postgres_changes", { event: "*", schema: "public", table: "progress", filter: "user_id=eq." + syncUser.id }, (payload) => {
+        const row = payload.new || {};
+        if (!row.state || row.device === deviceId) return;
+        const merged = mergeStates(state, row.state);
+        if (!same(merged, state)) {
+          applyState(merged);
+          toast("Прогресс обновлён с другого устройства");
+        }
+        syncInfo = { status: "ok", at: Date.now(), error: "" };
+        refreshSyncUi();
+        if (!same(merged, row.state)) schedulePush();
+      })
+      .subscribe();
+  }
+
+  function unsubscribeSync() {
+    if (syncChannel && sb) sb.removeChannel(syncChannel);
+    syncChannel = null;
+  }
+
+  function initSync() {
+    if (!window.supabase || !window.supabase.createClient) return;
+    try {
+      sb = window.supabase.createClient(SYNC_URL, SYNC_KEY, {
+        auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: "bim-academy-auth" }
+      });
+    } catch (e) {
+      sb = null;
+      return;
+    }
+    sb.auth.onAuthStateChange((event, session) => {
+      const u = session ? session.user : null;
+      const was = syncUser ? syncUser.id : null;
+      syncUser = u;
+      if (u && u.id !== was) {
+        // после входа по ссылке из письма убираем ?code= из адреса
+        if (location.search) history.replaceState(null, "", location.pathname + location.hash);
+        setTimeout(() => {
+          syncNow();
+          subscribeSync();
+        }, 0);
+      }
+      if (!u) {
+        unsubscribeSync();
+        syncInfo = { status: "off", at: 0, error: "" };
+      }
+      refreshSyncUi();
+    });
+    window.addEventListener("online", () => syncNow());
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") syncNow();
+    });
+  }
+
+  function syncStatusText() {
+    const t = syncInfo.at ? new Date(syncInfo.at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) : "";
+    if (syncInfo.status === "syncing") return "синхронизация…";
+    if (syncInfo.status === "offline") return "нет сети — отправлю, когда появится";
+    if (syncInfo.status === "error") return "не удалось: " + syncInfo.error;
+    if (syncInfo.status === "ok") return "синхронизировано в " + t;
+    return "";
+  }
+
+  function syncSectionHtml() {
+    if (!sb) {
+      return '<section class="section"><div class="section-head"><h2>Синхронизация</h2></div><div class="card"><p>Модуль синхронизации не загрузился. Обновите приложение с интернетом.</p></div></section>';
+    }
+    if (syncUser) {
+      return (
+        '<section class="section" id="syncSection"><div class="section-head"><h2>Синхронизация</h2><span class="sync-dot ' +
+        syncInfo.status +
+        '"></span></div><div class="card"><div class="row spread"><div style="min-width:0"><h3 class="sync-mail">☁️ ' +
+        esc(syncUser.email || "") +
+        '</h3><p id="syncStatus">' +
+        esc(syncStatusText()) +
+        '</p></div></div><p class="muted small mt">Прогресс одинаковый на всех устройствах, где вы вошли с этой почтой. Изменения уходят в облако через пару секунд, а открытые устройства получают их сразу.</p>' +
+        '<div class="btn-row mt"><button class="btn small primary" data-act="sync-now">Синхронизировать сейчас</button><button class="btn small" data-act="sync-out">Выйти</button></div></div></section>'
+      );
+    }
+    return (
+      '<section class="section" id="syncSection"><div class="section-head"><h2>Синхронизация</h2><span class="muted small">телефон и компьютеры</span></div><div class="card">' +
+      "<p>Войдите по почте — и прогресс будет одинаковым на всех устройствах. Пароль не нужен: придёт письмо с кодом.</p>" +
+      (otpEmail
+        ? '<p class="mt"><b>Код отправлен на ' +
+          esc(otpEmail) +
+          '</b></p><input class="answer-input mt" id="otpCode" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="Код из письма">' +
+          '<div class="btn-row mt"><button class="btn primary" data-act="sync-verify">Войти</button><button class="btn" data-act="sync-reset">Другая почта</button></div>' +
+          '<p class="muted small mt">Если в письме ссылка, а не код, — откройте её на этом же устройстве. Письмо может попасть в «Спам».</p>'
+        : '<input class="answer-input mt" id="syncEmail" type="email" autocomplete="email" placeholder="you@example.ru">' +
+          '<button class="btn primary block mt" data-act="sync-send">Получить код на почту</button>') +
+      '<p class="muted small mt">Прогресс с этого устройства не пропадёт: при входе он объединится с тем, что уже есть в облаке.</p></div></section>'
+    );
+  }
+
+  function refreshSyncUi() {
+    const el = document.getElementById("syncStatus");
+    if (el) el.textContent = syncStatusText();
+    const dot = document.querySelector("#syncSection .sync-dot");
+    if (dot) dot.className = "sync-dot " + syncInfo.status;
+    const [name] = currentRoute();
+    if (name === "more" && document.getElementById("syncSection")) {
+      const signed = !!syncUser;
+      const shown = !!document.querySelector("#syncSection .sync-mail");
+      if (signed !== shown) renderMore();
+    }
+  }
+
+  async function syncSendCode() {
+    const input = document.getElementById("syncEmail");
+    const email = ((input && input.value) || "").trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast("Введите почту");
+    if (!navigator.onLine) return toast("Нужен интернет");
+    toast("Отправляю письмо…");
+    const { error } = await sb.auth.signInWithOtp({
+      email: email,
+      options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname }
+    });
+    if (error) return toast("Не удалось отправить: " + error.message);
+    otpEmail = email;
+    renderMore();
+  }
+
+  async function syncVerify() {
+    const input = document.getElementById("otpCode");
+    const token = ((input && input.value) || "").replace(/\s/g, "");
+    if (!token) return toast("Введите код из письма");
+    const { error } = await sb.auth.verifyOtp({ email: otpEmail, token: token, type: "email" });
+    if (error) return toast("Код не подошёл: " + error.message);
+    otpEmail = "";
+    toast("Вход выполнен — объединяю прогресс");
+  }
+
   /* ================= освоение тем и повторение ================= */
 
   // Урок проходит уровни «знаком → освоено → мастер». Освоенная тема через
@@ -4170,6 +4496,8 @@
         : "") +
       "</div></section>";
 
+    html += syncSectionHtml();
+
     html +=
       '<section class="section"><div class="grid grid-2">' +
       statTile(tp.done + "/" + tp.total, "уроков пройдено") +
@@ -4372,7 +4700,7 @@
       const id = el.dataset.id;
       const cur = state.lessons[id] || {};
       if (cur.done) {
-        delete state.lessons[id];
+        state.lessons[id] = { done: false, at: Date.now() };
         toast("Отметка снята");
       } else {
         state.lessons[id] = { done: true, at: Date.now() };
@@ -4400,6 +4728,18 @@
       return;
     }
     if (act === "hero-tap") return heroSay();
+    if (act === "sync-send") return syncSendCode();
+    if (act === "sync-verify") return syncVerify();
+    if (act === "sync-reset") {
+      otpEmail = "";
+      return renderMore();
+    }
+    if (act === "sync-now") return syncNow();
+    if (act === "sync-out") {
+      if (sb) sb.auth.signOut();
+      toast("Вы вышли. Прогресс на этом устройстве остался");
+      return;
+    }
     if (act === "inq") return answerInline(el);
     if (act === "say") {
       e.preventDefault();
@@ -4678,6 +5018,7 @@
     if (act === "reset") {
       if (confirm("Удалить весь прогресс: уроки, статистику, закладки и ошибки?")) {
         state = defaultState();
+        state.resetAt = Date.now();
         save();
         applyTheme();
         toast("Прогресс сброшен");
@@ -4720,6 +5061,8 @@
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
+    if (e.target && e.target.id === "syncEmail") return syncSendCode();
+    if (e.target && e.target.id === "otpCode") return syncVerify();
     if (!quiz) return;
     const nextBtn = document.querySelector('[data-act="next"]');
     if (nextBtn) {
@@ -4928,6 +5271,7 @@
   /* ================= запуск ================= */
 
   applyTheme();
+  initSync();
   if (!location.hash) location.hash = "#/";
   route();
 })();
