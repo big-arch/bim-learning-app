@@ -1330,3 +1330,89 @@ body.no-scroll { overflow: hidden; }
 @media (min-width: 1024px) {
   .lesson-page .figure .fig-box svg { max-width: 760px; margin: 0 auto; }
 }
+
+/* ---------- Баннер: лестница званий и компактная статистика ---------- */
+.hero-hello { min-width: 0; }
+.hero-bottom { position: relative; display: grid; gap: 12px; margin-top: 14px; }
+.hero-bottom .hero-stats { margin-top: 0; }
+.rank-ladder { min-width: 0; }
+.rl-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 13px; }
+.rl-head b { font-size: 14.5px; }
+.rl-head span { opacity: 0.88; }
+.rl-track { position: relative; height: 6px; margin: 10px 6px 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.22); }
+.rl-track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: #fff; }
+.rl-step { position: absolute; top: 50%; transform: translate(-50%, -50%); }
+.rl-step em { display: block; width: 12px; height: 12px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); border: 2px solid rgba(255, 255, 255, 0.55); }
+.rl-step.on em { background: #fff; border-color: #fff; }
+.rl-step.cur em { width: 16px; height: 16px; box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.28); }
+.rl-step small { display: none; }
+
+.hero-stage { display: none; }
+
+/* ---------- Компьютер: сцена с героями и плотная раскладка ---------- */
+@media (min-width: 1024px) {
+  .hero { padding: 22px 26px 20px; }
+  .hero .companion { display: none; }
+  .hero-top { align-items: flex-end; gap: 18px; }
+  .hero-hello { flex: 0 0 240px; align-self: center; }
+  .hero-stage { display: block; position: relative; flex: 1; min-width: 0; height: 150px; margin: -10px 0 -8px; }
+  .actor { position: absolute; left: 0; bottom: 0; width: 92px; cursor: pointer; will-change: transform; outline: none; }
+  .actor:focus-visible .actor-art { outline: 2px solid #fff; outline-offset: 2px; border-radius: 12px; }
+  .actor-art { color: #fff; transition: transform 0.25s ease; }
+  .actor.flip .actor-art { transform: scaleX(-1); }
+  .actor.walking .actor-art .hero-svg, .actor.walking .actor-art .px-svg { animation: actorStep 0.42s ease-in-out infinite; }
+  @keyframes actorStep { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  .actor-bubble {
+    position: absolute; bottom: calc(100% - 4px); left: 50%; z-index: 3;
+    width: max-content; max-width: 230px;
+    padding: 7px 10px; border-radius: 12px;
+    background: #fff; color: #12172a; font-size: 12.5px; font-weight: 600; line-height: 1.3;
+    box-shadow: 0 8px 18px rgba(10, 14, 40, 0.25);
+    opacity: 0; transform: translate(-50%, 4px) scale(0.96);
+    transition: opacity 0.25s, transform 0.25s; pointer-events: none;
+  }
+  .actor-bubble::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; background: #fff; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
+  .actor-bubble.show { opacity: 1; transform: translate(-50%, 0); }
+  .actor-bubble.edge-l { left: 0; transform: translate(0, 4px); }
+  .actor-bubble.edge-l.show { transform: none; }
+  .actor-bubble.edge-l::after { left: 40px; }
+  .actor-bubble.edge-r { left: auto; right: 0; transform: translate(0, 4px); }
+  .actor-bubble.edge-r.show { transform: none; }
+  .actor-bubble.edge-r::after { left: auto; right: 34px; transform: rotate(45deg); }
+  .stage-link { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; opacity: 0; transition: opacity 0.4s; }
+  .stage-link.on { opacity: 1; }
+  .sl-path { fill: none; stroke: rgba(255, 255, 255, 0.75); stroke-width: 2; stroke-dasharray: 5 6; animation: linkMarch 0.8s linear infinite; }
+  .sl-dot { fill: #fff; }
+  .sl-dot2 { fill: #ffd166; }
+  @keyframes linkMarch { to { stroke-dashoffset: -22; } }
+
+  .hero-bottom { grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 24px; margin-top: 10px; }
+  .rl-track { margin-bottom: 24px; }
+  .rl-step small { display: block; position: absolute; top: 18px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10.5px; opacity: 0.8; }
+  .rl-step.cur small { opacity: 1; font-weight: 700; }
+  .rl-step:nth-child(2) small { left: 0; transform: none; }
+  .rl-step:last-of-type small { left: auto; right: 0; transform: none; }
+  .hero-stats { gap: 6px; }
+  .hero-stat { flex: none; display: flex; align-items: baseline; gap: 6px; padding: 7px 12px; border-radius: 999px; }
+  .hero-stat b { display: inline; font-size: 15px; }
+  .hero-stat span { font-size: 12px; }
+
+  /* «Продолжить» и «Сегодня» — рядом в одну строку */
+  .home-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; }
+  .home-main > .ho { grid-column: 1 / -1; }
+  .home-main > .ho:nth-child(1), .home-main > .ho:nth-child(2) { grid-column: auto; display: flex; }
+  .home-main > .ho:nth-child(1) > .section, .home-main > .ho:nth-child(2) > .section { display: flex; flex-direction: column; flex: 1; }
+  .home-main > .ho:nth-child(1) .card, .home-main > .ho:nth-child(2) .daily-cta { flex: 1; }
+
+  /* плитки справа — компактные строки */
+  .home-side .tiles { gap: 8px; }
+  .home-side .tiles .stat-tile { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 10px; align-items: center; padding: 10px 12px; text-align: left; }
+  .home-side .tiles .stat-tile > b:first-child { grid-row: 1 / span 2; font-size: 21px !important; }
+  .home-side .tiles .stat-tile > b:nth-child(2) { margin-top: 0 !important; font-size: 13.5px !important; }
+  .home-side .tiles .stat-tile > span { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (min-width: 1024px) {
+  .stage-link { z-index: 1; }
+  .actor { z-index: 2; }
+  .sl-path { stroke-width: 2.4; stroke: rgba(255, 255, 255, 0.85); }
+}

@@ -133,7 +133,7 @@
     history: [],
     days: {},
     streak: { current: 0, best: 0, last: "", freezes: 0, frozen: [] },
-    settings: { theme: "auto", goal: 10, newsProxy: "", hero: "engineer", heroStyle: "vec", name: "", remindAt: "19:00" },
+    settings: { theme: "auto", goal: 10, newsProxy: "", hero: "engineer", heroStyle: "vec", heroCount: 3, name: "", remindAt: "19:00" },
     mastery: {},
     quests: {},
     cases: {},
@@ -502,7 +502,7 @@
         ]
       : null;
 
-    let html = '<section class="section"><div class="hero"><div class="hero-top"><div><h1>' +
+    let html = '<section class="section"><div class="hero"><div class="hero-top"><div class="hero-hello"><h1>' +
       hello +
       "!</h1><p>Решено сегодня: " +
       t.questions +
@@ -511,9 +511,12 @@
       " " +
       plural(state.settings.goal, "вопроса", "вопросов", "вопросов") +
       "</p></div>" +
+      heroStageHtml() +
       heroHtml() +
       ringHtml(goalPct) +
-      '</div><div class="hero-stats"><div class="hero-stat"><b>' +
+      '</div><div class="hero-bottom">' +
+      rankLadderHtml() +
+      '<div class="hero-stats"><div class="hero-stat"><b>' +
       streakNow() +
       (state.streak.freezes ? '<small class="frz"> ❄️' + state.streak.freezes + "</small>" : "") +
       "</b><span>дней подряд</span></div>" +
@@ -524,7 +527,7 @@
       "</b><span>уроков</span></div>" +
       '<div class="hero-stat"><b>' +
       accuracy() +
-      "%</b><span>точность</span></div></div></div></section>";
+      "%</b><span>точность</span></div></div></div></div></section>";
 
     // На компьютере главная делится на основную и боковую колонки,
     // на телефоне блоки идут одной лентой в прежнем порядке (order).
@@ -551,7 +554,7 @@
     const dailyDone = (todayStats().daily || 0) > 0;
     const toReview = reviewLessons().length;
     main += block(2,
-      '<section class="section"><a class="daily-cta' +
+      '<section class="section"><div class="section-head"><h2>Сегодня</h2></div><a class="daily-cta' +
       (dailyDone ? " done" : "") +
       '" href="#/quiz/daily/1"><span class="dc-ico">' +
       (dailyDone ? "✓" : "⚡") +
@@ -591,20 +594,7 @@
         "</p></div></section>");
     }
 
-    side += block(7,
-      '<section class="section"><div class="card"><div class="row spread"><div><h3>' +
-      esc(r.cur.title) +
-      "</h3><p>" +
-      state.xp +
-      " XP" +
-      (r.next ? " · до «" + esc(r.next.title) + "»: " + (r.next.min - state.xp) + " XP" : " · максимальный уровень") +
-      '</p></div><a class="btn small soft" href="#/more">Профиль</a></div>' +
-      (r.next
-        ? '<div class="progress" style="margin-top:12px"><i style="width:' +
-          Math.min(100, Math.round(((state.xp - r.cur.min) / (r.next.min - r.cur.min)) * 100)) +
-          '%"></i></div>'
-        : "") +
-      "</div></section>");
+
 
     html += '<div class="home-grid"><div class="home-main">' + main + '</div><div class="home-side">' + side + "</div></div>";
     view.innerHTML = html;
@@ -3534,6 +3524,7 @@
 
   function startHero() {
     clearInterval(heroTimer);
+    startStage();
     if (!document.getElementById("companion")) return;
     heroPhraseIdx = 0;
     heroDraw();
@@ -3596,8 +3587,288 @@
             "</button>"
         )
         .join("") +
+      "</div>" +
+      '<p class="muted small mt">Героев на главной на компьютере — они ходят, разговаривают и связываются друг с другом:</p>' +
+      '<div class="segmented mt">' +
+      [1, 2, 3]
+        .map((n) => '<button data-act="hero-count" data-n="' + n + '" class="' + ((state.settings.heroCount || 3) === n ? "on" : "") + '">' + n + "</button>")
+        .join("") +
       "</div></section>"
     );
+  }
+
+  /* ================= лестница званий в баннере ================= */
+
+  function rankLadderHtml() {
+    const r = rank();
+    const idx = Math.max(0, RANKS.indexOf(r.cur));
+    const frac = r.next ? (state.xp - r.cur.min) / (r.next.min - r.cur.min) : 1;
+    const last = RANKS.length - 1;
+    const pos = Math.min(100, ((idx + Math.max(0, Math.min(1, frac))) / last) * 100);
+    return (
+      '<div class="rank-ladder"><div class="rl-head"><b>' +
+      esc(r.cur.title) +
+      "</b><span>" +
+      state.xp +
+      " XP" +
+      (r.next ? " · до «" + esc(r.next.title) + "» " + (r.next.min - state.xp) + " XP" : " · высшее звание") +
+      '</span></div><div class="rl-track"><i style="width:' +
+      pos.toFixed(1) +
+      '%"></i>' +
+      RANKS.map(
+        (x, i) =>
+          '<span class="rl-step' +
+          (i <= idx ? " on" : "") +
+          (i === idx ? " cur" : "") +
+          '" style="left:' +
+          ((i / last) * 100).toFixed(2) +
+          '%" title="' +
+          esc(x.title) +
+          " — от " +
+          x.min +
+          ' XP"><em></em><small>' +
+          esc(x.title) +
+          "</small></span>"
+      ).join("") +
+      "</div></div>"
+    );
+  }
+
+  /* ================= сцена с героями (компьютер) ================= */
+
+  // На широком экране герои ходят по баннеру, занимаются своими делами,
+  // сходятся по двое и разговаривают — между ними бежит линия связи.
+  const STAGE_TALKS = [
+    ["Ты уже синхронизировался?", "Секунду… готово, всё в облаке!"],
+    ["Почему стену не видно на плане?", "Проверь секущий диапазон вида."],
+    ["Specification — это спецификация?", "Нет! Таблица Revit — это schedule."],
+    ["В отчёте 1200 коллизий!", "Похоже, одна система на неверной отметке."],
+    ["Модель заблокирована!", "Только не через Проводник — зови админа."],
+    ["Кто отвечает за координаты?", "Эталон один, и он записан в BEP."],
+    ["Сыграем в блиц на минуту?", "Давай! Только без подсказок."],
+    ["Ты прошёл тренировку дня?", "Пока нет — сейчас исправим."],
+    ["Какой LOD нужен на стадии П?", "Тот, что нужен для задачи, а не максимальный."],
+    ["Зачем нам ускоритель в филиале?", "Чтобы модель не открывалась сорок минут."],
+    ["Опять ошибка в тесте…", "Ошибки — это тоже прогресс. Повторим!"],
+    ["Как по-английски «рабочий набор»?", "Workset. Легко!"]
+  ];
+  const ACTOR_W = 92;
+  const REDUCED = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let stage = null;
+
+  function heroStageHtml() {
+    if (!HEROES || state.settings.hero === "off") return "";
+    return '<div class="hero-stage" id="heroStage"></div>';
+  }
+
+  function stageWidth() {
+    return Math.max(ACTOR_W, stage.el.clientWidth - ACTOR_W);
+  }
+
+  function setActorState(a, st) {
+    if (a.st === st) return;
+    a.st = st;
+    a.art.innerHTML = heroDrawSvg(a.id, st, a.main ? heroLevel() : 0);
+  }
+
+  function actorSay(a, text, ms) {
+    const W = stageWidth();
+    a.bubble.textContent = text;
+    a.bubble.classList.toggle("edge-l", a.x < 70);
+    a.bubble.classList.toggle("edge-r", a.x > W - 70);
+    a.bubble.classList.add("show");
+    clearTimeout(a.bt);
+    a.bt = setTimeout(() => a.bubble.classList.remove("show"), ms || 3200);
+  }
+
+  function stopStage() {
+    if (!stage) return;
+    cancelAnimationFrame(stage.raf);
+    stage.actors.forEach((a) => clearTimeout(a.bt));
+    clearTimeout(stage.talkTimer);
+    stage = null;
+  }
+
+  function startStage() {
+    stopStage();
+    const el = document.getElementById("heroStage");
+    if (!el || !HEROES || !window.matchMedia || !matchMedia("(min-width: 1024px)").matches) return false;
+    const count = Math.max(1, Math.min(3, state.settings.heroCount || 3));
+    const ids = [state.settings.hero]
+      .concat(shuffle(HEROES.chars.map((c) => c.id).filter((id) => id !== state.settings.hero)))
+      .slice(0, count);
+    const ctx = heroContext();
+    const base = HEROES.pickState(ctx);
+    if (base === "celebrate") {
+      state.companion.celebratedDay = todayKey();
+      save();
+    }
+    el.innerHTML =
+      '<svg class="stage-link" id="stageLink" aria-hidden="true"></svg>' +
+      ids
+        .map(
+          (id, i) =>
+            '<div class="actor" data-act="stage-tap" data-i="' +
+            i +
+            '" role="button" tabindex="0" aria-label="' +
+            esc((heroChar(id) || {}).name || "Герой") +
+            '"><div class="actor-bubble" aria-live="polite"></div><div class="actor-art"></div></div>'
+        )
+        .join("");
+    stage = { el: el, actors: [], last: performance.now(), talkIn: 4 + Math.random() * 3, talk: null, sleeping: base === "sleep", base: base, raf: 0 };
+    const W = stageWidth();
+    stage.actors = ids.map((id, i) => {
+      const node = el.querySelector('.actor[data-i="' + i + '"]');
+      return {
+        id: id,
+        i: i,
+        main: i === 0,
+        node: node,
+        art: node.querySelector(".actor-art"),
+        bubble: node.querySelector(".actor-bubble"),
+        x: count === 1 ? W / 2 : (W * i) / (count - 1),
+        dir: i === count - 1 && count > 1 ? -1 : 1,
+        target: null,
+        wait: 1.5 + Math.random() * 3,
+        st: ""
+      };
+    });
+    stage.actors.forEach((a) => {
+      setActorState(a, a.main ? base : stage.sleeping ? "sleep" : base === "celebrate" ? "celebrate" : "idle");
+      a.node.style.transform = "translateX(" + a.x + "px)";
+      a.node.classList.toggle("flip", a.dir < 0);
+    });
+    // главный герой здоровается
+    setTimeout(() => {
+      if (stage && stage.actors[0]) {
+        const ch = heroChar(stage.actors[0].id);
+        actorSay(stage.actors[0], heroPhrases(heroContext(), ch)[0], 4200);
+      }
+    }, 900);
+    stage.raf = requestAnimationFrame(stageTick);
+    return true;
+  }
+
+  function idleActivity() {
+    const h = new Date().getHours();
+    const pool = ["work", "work", "read", "game", "idle"];
+    if (h < 11) pool.push("coffee", "coffee");
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function startTalk() {
+    const free = stage.actors.filter((a) => !a.talking);
+    if (free.length < 2) return;
+    const pair = shuffle(free).slice(0, 2).sort((p, q) => p.x - q.x);
+    const W = stageWidth();
+    const mid = Math.max(60, Math.min(W - 60, (pair[0].x + pair[1].x) / 2));
+    const lines = STAGE_TALKS[Math.floor(Math.random() * STAGE_TALKS.length)];
+    stage.talk = { a: pair[0], b: pair[1], lines: lines, phase: "approach" };
+    pair[0].target = Math.max(0, mid - 58);
+    pair[1].target = Math.min(W, mid + 58);
+    pair.forEach((a) => {
+      a.talking = true;
+      setActorState(a, "idle");
+    });
+  }
+
+  function drawLink(on) {
+    const svg = document.getElementById("stageLink");
+    if (!svg) return;
+    if (!on || !stage.talk) {
+      svg.classList.remove("on");
+      return;
+    }
+    const a = stage.talk.a;
+    const b = stage.talk.b;
+    const ax = a.x + ACTOR_W / 2;
+    const bx = b.x + ACTOR_W / 2;
+    const y = stage.el.clientHeight - 52;
+    const d = "M" + ax + " " + y + " Q " + (ax + bx) / 2 + " " + (y - 30) + " " + bx + " " + y;
+    const back = "M" + bx + " " + y + " Q " + (ax + bx) / 2 + " " + (y - 30) + " " + ax + " " + y;
+    svg.innerHTML =
+      '<path class="sl-path" d="' + d + '"/>' +
+      '<circle class="sl-dot" r="4"><animateMotion dur="1.4s" repeatCount="indefinite" path="' + d + '"/></circle>' +
+      '<circle class="sl-dot sl-dot2" r="3"><animateMotion dur="1.4s" repeatCount="indefinite" path="' + back + '"/></circle>';
+    svg.classList.add("on");
+  }
+
+  function stageTick(now) {
+    if (!stage) return;
+    if (!document.body.contains(stage.el)) return stopStage();
+    const dt = Math.min(0.1, (now - stage.last) / 1000);
+    stage.last = now;
+    const W = stageWidth();
+    stage.actors.forEach((a) => {
+      if (a.target !== null) {
+        const dx = a.target - a.x;
+        const step = REDUCED ? Math.abs(dx) : 46 * dt;
+        if (Math.abs(dx) <= step + 0.5) {
+          a.x = a.target;
+          a.target = null;
+          a.node.classList.remove("walking");
+        } else {
+          a.x += Math.sign(dx) * step;
+          a.dir = Math.sign(dx);
+          a.node.classList.add("walking");
+        }
+      } else if (!a.talking && !stage.sleeping && stage.base !== "celebrate") {
+        a.wait -= dt;
+        if (a.wait <= 0) {
+          if (Math.random() < 0.55) {
+            setActorState(a, "idle");
+            a.target = Math.random() * W;
+            a.wait = 1 + Math.random() * 2;
+          } else {
+            setActorState(a, a.main && stage.base === "cheer" ? "cheer" : idleActivity());
+            a.wait = 4 + Math.random() * 4;
+          }
+        }
+      }
+      a.x = Math.max(0, Math.min(W, a.x));
+      a.node.style.transform = "translateX(" + a.x.toFixed(1) + "px)";
+      a.node.classList.toggle("flip", a.dir < 0);
+    });
+
+    // разговоры по двое
+    if (!stage.sleeping && stage.actors.length > 1) {
+      const t = stage.talk;
+      if (!t) {
+        stage.talkIn -= dt;
+        if (stage.talkIn <= 0) startTalk();
+      } else if (t.phase === "approach" && t.a.target === null && t.b.target === null) {
+        t.phase = "talk";
+        t.a.dir = 1;
+        t.b.dir = -1;
+        drawLink(true);
+        actorSay(t.a, t.lines[0], 2800);
+        stage.talkTimer = setTimeout(() => {
+          if (!stage || stage.talk !== t) return;
+          actorSay(t.b, t.lines[1], 2900);
+          stage.talkTimer = setTimeout(() => {
+            if (!stage || stage.talk !== t) return;
+            drawLink(false);
+            [t.a, t.b].forEach((a) => {
+              a.talking = false;
+              a.wait = 0.5 + Math.random() * 2;
+            });
+            stage.talk = null;
+            stage.talkIn = 9 + Math.random() * 8;
+          }, 3100);
+        }, 2900);
+      }
+    }
+    stage.raf = requestAnimationFrame(stageTick);
+  }
+
+  function stageTap(i) {
+    if (!stage) return;
+    const a = stage.actors[i];
+    if (!a) return;
+    const ch = heroChar(a.id);
+    const list = a.main ? heroPhrases(heroContext(), ch) : ch.phrases;
+    a.k = (a.k || 0) + 1;
+    actorSay(a, list[a.k % list.length], 3600);
   }
 
   /* ================= собеседование ================= */
@@ -4803,6 +5074,12 @@
       return;
     }
     if (act === "hero-tap") return heroSay();
+    if (act === "stage-tap") return stageTap(Number(el.dataset.i));
+    if (act === "hero-count") {
+      state.settings.heroCount = Number(el.dataset.n);
+      save();
+      return renderMore();
+    }
     if (act === "sync-send") return syncSendCode();
     if (act === "sync-verify") return syncVerify();
     if (act === "sync-login") return syncLoginPass();
@@ -5123,6 +5400,11 @@
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && document.getElementById("zoom")) return closeZoom();
+    const actor = e.target.closest && e.target.closest('[data-act="stage-tap"]');
+    if (actor && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      return stageTap(Number(actor.dataset.i));
+    }
     const hero = e.target.closest && e.target.closest('[data-act="hero-tap"]');
     if (hero && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
@@ -5245,7 +5527,10 @@
     const [name, a, b, params] = currentRoute();
     closeZoom();
     if (name !== "games" && game) stopGame();
-    if (name !== "home") clearInterval(heroTimer);
+    if (name !== "home") {
+      clearInterval(heroTimer);
+      stopStage();
+    }
 
     document.querySelectorAll(".tab").forEach((t) => {
       t.classList.toggle("active", (TAB_ROUTES[name] || name) === t.dataset.tab);
@@ -5347,6 +5632,16 @@
   });
 
   window.addEventListener("hashchange", route);
+  let resizeTimer = null;
+  let wasDesktop = window.matchMedia && matchMedia("(min-width: 1024px)").matches;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const desk = matchMedia("(min-width: 1024px)").matches;
+      if (desk !== wasDesktop && currentRoute()[0] === "home") renderHome();
+      wasDesktop = desk;
+    }, 200);
+  });
 
   /* ================= PWA ================= */
 
