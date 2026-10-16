@@ -1,7 +1,9 @@
 {
   "app": "BIM Academy",
-  "version": "2026-10-15-v17",
+  "version": "2026-10-16-v19",
   "features": [
+    "desktop-sidebar-layout",
+    "compact-course-tiles-mobile",
     "cloud-sync-supabase-email-otp",
     "daily-training",
     "lesson-mastery-and-review",

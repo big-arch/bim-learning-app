@@ -1216,3 +1216,117 @@ body.no-scroll { overflow: hidden; }
 .sync-dot.offline { background: var(--warn); }
 @keyframes syncPulse { 50% { opacity: 0.3; } }
 .sync-pass summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--accent); }
+
+/* ---------- Раскладка главной: на телефоне одна лента ---------- */
+.home-grid { display: flex; flex-direction: column; }
+.home-main, .home-side { display: contents; }
+.side-brand, .tab-extra, .tab-sep { display: none; }
+
+/* ---------- Телефон: компактные плитки курсов в две колонки ---------- */
+@media (max-width: 700px) {
+  .course-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .course-grid .course-card { display: flex; flex-direction: column; padding: 12px 12px 11px 15px; }
+  .course-grid .course-card::before { width: 4px; }
+  .course-grid .cc-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .course-grid .course-icon { width: 36px; height: 36px; border-radius: 11px; }
+  .course-grid .course-icon svg { width: 20px; height: 20px; }
+  .course-grid .course-card h3 { font-size: 14.5px; line-height: 1.25; min-height: 2.5em; }
+  .course-grid .cc-sub, .course-grid .cc-text { display: none; }
+  .course-grid .progress { margin-top: auto; }
+  .course-grid .cc-head + .progress, .course-grid .cc-head ~ .progress { margin-top: 10px; }
+  .course-grid .progress-meta { font-size: 11px; margin-top: 5px; }
+  .course-grid .cc-done { top: 10px; right: 10px; font-size: 10.5px; padding: 2px 7px; }
+}
+
+/* ---------- Компьютер: боковое меню, вся ширина экрана ---------- */
+@media (min-width: 1024px) {
+  :root { --side-w: 248px; }
+
+  .tabbar {
+    top: 0;
+    right: auto;
+    width: var(--side-w);
+    height: auto;
+    flex-direction: column;
+    gap: 2px;
+    padding: 16px 12px 20px;
+    border-top: 0;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+  }
+  .side-brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 18px; font-size: 16.5px; font-weight: 800; letter-spacing: -0.2px; }
+  .side-brand img { border-radius: 9px; }
+  .tab, .tab-extra {
+    flex: none;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 14.5px;
+    font-weight: 500;
+  }
+  .tab svg { width: 20px; height: 20px; }
+  .tab-em { width: 20px; text-align: center; font-size: 16px; line-height: 1; }
+  .tab:hover { background: var(--bg-soft); color: var(--text); }
+  .tab.active { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-weight: 650; }
+  .tab:active { transform: none; }
+  .tab-sep { display: block; height: 1px; background: var(--border); margin: 8px 10px; }
+
+  .topbar { left: var(--side-w); padding-left: 24px; padding-right: 24px; }
+  .view {
+    margin-left: var(--side-w);
+    max-width: none;
+    padding-top: calc(var(--top-h) + 28px);
+    padding-bottom: 48px;
+    padding-left: max(36px, calc((100vw - var(--side-w) - 1240px) / 2));
+    padding-right: max(36px, calc((100vw - var(--side-w) - 1240px) / 2));
+  }
+  .toast { bottom: 28px; left: calc(50% + var(--side-w) / 2); }
+
+  /* главная: основная и боковая колонки */
+  .home-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); gap: 28px; align-items: start; }
+  .home-main, .home-side { display: block; }
+  .home-side { position: sticky; top: calc(var(--top-h) + 20px); }
+  .home-side .grid-2.tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* сетки растягиваются по ширине */
+  .grid:not(.grid-2) { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .course-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .course-card:hover, a.stat-tile:hover, .menu-item:hover, .path-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+  .path-strip { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); overflow: visible; }
+
+  /* текст читается в комфортной колонке */
+  .lesson-page,
+  body[data-route="quiz"] .view > *,
+  body[data-route="case"] .view > *,
+  body[data-route="sim"] .view > *,
+  body[data-route="cert"] .view > *,
+  body[data-route="interview"] .view > *,
+  body[data-route="review"] .view > *,
+  body[data-route="more"] .view > *,
+  body[data-route="checks"] .view > * { max-width: 860px; margin-left: auto; margin-right: auto; }
+  body[data-route="quiz"] .view > *, body[data-route="case"] .view > * { max-width: 760px; }
+
+  /* списки разделов — в две колонки */
+  body[data-route="tests"] .section, body[data-route="games"] .section { max-width: 980px; }
+}
+
+@media (min-width: 1440px) {
+  .course-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+}
+
+/* траектории: карточки на одной линии и без лишней высоты */
+.path-strip > .path-card { margin: 0; }
+@media (max-width: 1023px) {
+  .path-strip { align-items: start; grid-auto-columns: minmax(230px, 70%); }
+  .path-strip .path-card { padding: 12px 14px; }
+  .path-strip .path-card h3 { font-size: 14.5px; line-height: 1.25; }
+  .path-strip .path-ico { width: 34px; height: 34px; font-size: 18px; }
+}
+@media (min-width: 1024px) {
+  .lesson-page .figure .fig-box svg { max-width: 760px; margin: 0 auto; }
+}

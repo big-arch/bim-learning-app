@@ -526,7 +526,13 @@
       accuracy() +
       "%</b><span>точность</span></div></div></div></section>";
 
-    html +=
+    // На компьютере главная делится на основную и боковую колонки,
+    // на телефоне блоки идут одной лентой в прежнем порядке (order).
+    const block = (n, inner) => '<div class="ho" style="order:' + n + '">' + inner + "</div>";
+    let main = "";
+    let side = "";
+
+    main += block(1,
       '<section class="section"><div class="section-head"><h2>Продолжить</h2><a href="#/courses">все курсы</a></div>' +
       '<a class="card" href="#/lesson/' +
       cont.id +
@@ -540,11 +546,11 @@
       esc(cont.title) +
       "</h3><p>" +
       esc(cont.goal || "") +
-      "</p></a></section>";
+      "</p></a></section>");
 
     const dailyDone = (todayStats().daily || 0) > 0;
     const toReview = reviewLessons().length;
-    html +=
+    main += block(2,
       '<section class="section"><a class="daily-cta' +
       (dailyDone ? " done" : "") +
       '" href="#/quiz/daily/1"><span class="dc-ico">' +
@@ -555,37 +561,37 @@
       (toReview
         ? '<a class="review-cta" href="#/review">↻ Пора повторить: ' + toReview + " " + plural(toReview, "тема", "темы", "тем") + "</a>"
         : "") +
-      "</section>";
+      "</section>");
 
-    html += questsHtml();
+    side += block(3, questsHtml());
 
-    html +=
-      '<section class="section"><div class="grid grid-2">' +
+    side += block(4,
+      '<section class="section"><div class="grid grid-2 tiles">' +
       actionTile("#/quiz/mistakes/all", "🎯", "Мои ошибки", due ? due + " к повтору" : "всё закрыто") +
       actionTile("#/paths", "🧭", "Траектории", "путь к роли и сертификат") +
       actionTile("#/cases", "🧩", "Кейсы", "решения на проекте") +
       actionTile("#/games", "🎮", "Игры", "пары, блиц, тренажёры") +
       actionTile("#/interview", "💼", "Собеседование", INTERVIEW_SIZE + " вопросов на время") +
       actionTile("#/cards", "🃏", "Карточки", dueCards().length ? dueCards().length + " к повтору" : "термины") +
-      "</div></section>";
+      "</div></section>");
 
-    html +=
-      '<section class="section"><div class="section-head"><h2>Курсы</h2></div><div class="grid">' +
+    main += block(5,
+      '<section class="section"><div class="section-head"><h2>Курсы</h2><a href="#/courses">все</a></div><div class="grid course-grid">' +
       CONTENT.courses.map(courseCard).join("") +
-      "</div></section>";
+      "</div></section>");
 
     if (termOfDay) {
-      html +=
+      side += block(6,
         '<section class="section"><div class="section-head"><h2>Термин дня</h2></div><div class="card"><div class="row spread"><h3>' +
         esc(termOfDay.term) +
         '</h3><span class="chip">' +
         esc((courseById[termOfDay.course] || {}).title || "BIM") +
         "</span></div><p>" +
         esc(termOfDay.text) +
-        "</p></div></section>";
+        "</p></div></section>");
     }
 
-    html +=
+    side += block(7,
       '<section class="section"><div class="card"><div class="row spread"><div><h3>' +
       esc(r.cur.title) +
       "</h3><p>" +
@@ -598,8 +604,9 @@
           Math.min(100, Math.round(((state.xp - r.cur.min) / (r.next.min - r.cur.min)) * 100)) +
           '%"></i></div>'
         : "") +
-      "</div></section>";
+      "</div></section>");
 
+    html += '<div class="home-grid"><div class="home-main">' + main + '</div><div class="home-side">' + side + "</div></div>";
     view.innerHTML = html;
     startHero();
   }
@@ -636,7 +643,7 @@
           PATHS.map(pathCard).join("") +
           "</div></section>"
         : "") +
-      '<section class="section"><div class="section-head"><h2>Курсы</h2></div><div class="grid">' +
+      '<section class="section"><div class="section-head"><h2>Курсы</h2></div><div class="grid course-grid">' +
       CONTENT.courses.map(courseCard).join("") +
       "</div></section>";
   }
@@ -710,7 +717,7 @@
     const next = list[lesson.index + 1];
     const qn = (lesson.questions || []).length;
 
-    let html = '<div style="--accent:' + course.accent + '">';
+    let html = '<div class="lesson-page" style="--accent:' + course.accent + '">';
     html +=
       '<section class="lesson-hero"><div class="row row-wrap"><span class="chip accent">' +
       esc(course.title) +
@@ -5224,6 +5231,7 @@
   const TAB_ROUTES = { home: "home", courses: "courses", tests: "tests", videos: "videos", news: "news", more: "more" };
 
   function route() {
+    document.body.dataset.route = currentRoute()[0];
     if (/access_token=|error_description=/.test(location.hash)) {
       const err = /error_description=([^&]+)/.exec(location.hash);
       setTop("Вход", "синхронизация");
@@ -5240,7 +5248,7 @@
     if (name !== "home") clearInterval(heroTimer);
 
     document.querySelectorAll(".tab").forEach((t) => {
-      t.classList.toggle("active", TAB_ROUTES[name] === t.dataset.tab);
+      t.classList.toggle("active", (TAB_ROUTES[name] || name) === t.dataset.tab);
     });
     backBtn.hidden = !!TAB_ROUTES[name];
 

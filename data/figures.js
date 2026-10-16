@@ -223,23 +223,27 @@ window.BIM_FIGURES = {
 </svg>`,
 
   "revit-view-range": `
-<svg viewBox="0 0 640 260" role="img" aria-label="Диапазон вида плана в Revit">
-  <path class="f-line" d="M60 40h520M60 100h520M60 170h520M60 220h520"/>
-  <text class="f-dim" x="60" y="34">Верхняя граница (Top)</text>
-  <text class="f-accent-txt" x="60" y="94">Секущая плоскость (Cut plane) — обычно 1200 мм</text>
-  <text class="f-dim" x="60" y="164">Низ (Bottom)</text>
-  <text class="f-dim" x="60" y="214">Глубина вида (View depth)</text>
+<svg viewBox="0 0 640 290" role="img" aria-label="Диапазон вида плана в Revit">
+  <path class="f-line" d="M20 40h600M20 100h600M20 170h600M20 220h600"/>
+  <text class="f-dim" x="20" y="34">Верхняя граница (Top)</text>
+  <text class="f-accent-txt" x="20" y="94">Секущая плоскость (Cut plane)</text>
+  <text class="f-dim" x="20" y="116">обычно 1200 мм</text>
+  <text class="f-dim" x="20" y="164">Низ (Bottom)</text>
+  <text class="f-dim" x="20" y="214">Глубина вида (View depth)</text>
 
-  <rect class="f-fill" x="150" y="60" width="60" height="130" rx="2"/>
-  <path class="f-accent" d="M150 60h60v130h-60z"/>
-  <text class="f-dim" x="150" y="240">стена: попала под секущую</text>
+  <rect class="f-fill" x="330" y="60" width="50" height="130" rx="2"/>
+  <path class="f-accent" d="M330 60h50v130h-50z"/>
+  <text class="f-dim f-center" x="355" y="246">стена:</text>
+  <text class="f-dim f-center" x="355" y="262">попала в разрез</text>
 
-  <rect class="f-box" x="300" y="120" width="70" height="50" rx="2"/>
-  <text class="f-dim" x="292" y="240">ниже секущей: видна целиком</text>
+  <rect class="f-box" x="440" y="120" width="60" height="50" rx="2"/>
+  <text class="f-dim f-center" x="470" y="246">ниже секущей:</text>
+  <text class="f-dim f-center" x="470" y="262">видна сверху</text>
 
-  <rect class="f-box" x="470" y="192" width="70" height="24" rx="2"/>
-  <text class="f-dim" x="440" y="240">между низом и глубиной</text>
-  <text class="f-dim" x="440" y="256">(показ пунктиром/скрыто)</text>
+  <rect class="f-box" x="550" y="194" width="60" height="22" rx="2"/>
+  <text class="f-dim f-center" x="580" y="246">ниже низа:</text>
+  <text class="f-dim f-center" x="580" y="262">в глубине вида</text>
+  <text class="f-dim f-center" x="580" y="278">(стиль «Дальше»)</text>
 </svg>`,
 
   "worksharing": `

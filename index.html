@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0e1220" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="BIM Academy — приложение для изучения Revit, Navisworks, AutoCAD, Civil 3D и BIM: уроки, схемы, видео, тесты, глоссарий и поиск." />
-    <meta name="app-version" content="2026-10-15-v17" />
+    <meta name="app-version" content="2026-10-16-v19" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="BIM Academy" />
@@ -15,7 +15,7 @@
     <link rel="icon" type="image/svg+xml" href="icons/bim-icon.svg" />
     <link rel="apple-touch-icon" href="icons/bim-icon-180.png" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=17" />
+    <link rel="stylesheet" href="styles.css?v=19" />
     <link rel="stylesheet" href="heroes.css?v=12" />
   </head>
   <body>
@@ -40,6 +40,7 @@
       <main id="view" class="view" tabindex="-1"></main>
 
       <nav class="tabbar" aria-label="Основная навигация">
+        <a class="side-brand" href="#/" aria-label="BIM Academy — на главную"><img src="icons/bim-icon.svg" alt="" width="32" height="32"><span>BIM Academy</span></a>
         <a class="tab" href="#/" data-tab="home">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v8a1 1 0 01-1 1h-5v-6H10v6H5a1 1 0 01-1-1z" /></svg>
           <span>Главная</span>
@@ -60,6 +61,14 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h13v14H5.5A1.5 1.5 0 014 17.5z" /><path d="M17 9h3v8.5a1.5 1.5 0 01-3 0z" /><path d="M7 8.5h7M7 12h7M7 15.5h4" /></svg>
           <span>Новости</span>
         </a>
+        <div class="tab-sep" aria-hidden="true"></div>
+        <a class="tab tab-extra" href="#/paths" data-tab="paths"><span class="tab-em" aria-hidden="true">🧭</span><span>Траектории</span></a>
+        <a class="tab tab-extra" href="#/games" data-tab="games"><span class="tab-em" aria-hidden="true">🎮</span><span>Игры и тренажёры</span></a>
+        <a class="tab tab-extra" href="#/cases" data-tab="cases"><span class="tab-em" aria-hidden="true">🧩</span><span>Кейсы</span></a>
+        <a class="tab tab-extra" href="#/checks" data-tab="checks"><span class="tab-em" aria-hidden="true">✅</span><span>Чек-листы</span></a>
+        <a class="tab tab-extra" href="#/glossary" data-tab="glossary"><span class="tab-em" aria-hidden="true">📖</span><span>Глоссарий</span></a>
+        <a class="tab tab-extra" href="#/vocab" data-tab="vocab"><span class="tab-em" aria-hidden="true">🔊</span><span>BIM English</span></a>
+        <div class="tab-sep" aria-hidden="true"></div>
         <a class="tab" href="#/more" data-tab="more">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="6" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="18" r="1.6" /></svg>
           <span>Ещё</span>
@@ -69,7 +78,7 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <script src="data/figures.js?v=10" defer></script>
+    <script src="data/figures.js?v=19" defer></script>
     <script src="data/course-bim.js?v=13" defer></script>
     <script src="data/course-revit.js?v=13" defer></script>
     <script src="data/course-navisworks.js?v=13" defer></script>
@@ -92,6 +101,6 @@
     <script src="data/paths.js?v=13" defer></script>
     <script src="sims.js?v=13" defer></script>
     <script src="vendor/supabase.js?v=2.45.4" defer></script>
-    <script src="app.js?v=17" defer></script>
+    <script src="app.js?v=18" defer></script>
   </body>
 </html>
