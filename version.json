@@ -1,7 +1,12 @@
 {
   "app": "BIM Academy",
-  "version": "2026-10-16-v23",
+  "version": "2026-10-16-v24",
   "features": [
+    "home-dashboard-redesign",
+    "course-cover-illustrations",
+    "hero-desk-scene-hologram",
+    "topbar-search-bell-profile",
+    "rank-levels-page",
     "desktop-hero-stage-walking-talking",
     "rank-ladder-in-banner",
     "desktop-sidebar-layout",

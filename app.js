@@ -487,119 +487,298 @@
   /* ================= экраны ================= */
 
   function renderHome() {
-    setTop("BIM Academy", "Revit · Navisworks · AutoCAD · Civil 3D");
+    setTop("BIM Academy", "Главная");
+    const COV = window.BIM_COVERS;
     const hour = new Date().getHours();
     const hello = hour < 5 ? "Доброй ночи" : hour < 12 ? "Доброе утро" : hour < 18 ? "Добрый день" : "Добрый вечер";
+    const name = displayName();
     const t = todayStats();
-    const goalPct = Math.min(100, (t.questions / state.settings.goal) * 100);
-    const tp = totalProgress();
+    const goal = state.settings.goal;
     const cont = nextLesson();
-    const due = dueMistakes().length;
+    const cc = courseById[lessonCourse[cont.id]];
+    const cp = courseProgress(cc);
+    const left = cc.lessons.filter((l) => !(state.lessons[l.id] || {}).done).reduce((a, l) => a + (l.minutes || 0), 0);
     const r = rank();
-    const termOfDay = CONTENT.glossary.length
-      ? CONTENT.glossary[
-          (new Date().getFullYear() * 372 + new Date().getMonth() * 31 + new Date().getDate()) % CONTENT.glossary.length
-        ]
-      : null;
+    const ri = Math.max(0, RANKS.indexOf(r.cur));
+    const xpPct = r.next ? Math.round(((state.xp - r.cur.min) / (r.next.min - r.cur.min)) * 100) : 100;
+    const quote = HOME_QUOTES[seedOf(todayKey()) % HOME_QUOTES.length];
+    const due = dueMistakes().length;
+    const chip = (em, v, label) => '<div class="nh-chip-stat"><span class="nh-em">' + em + "</span><b>" + v + "</b><small>" + label + "</small></div>";
 
-    let html = '<section class="section"><div class="hero"><div class="hero-top"><div class="hero-hello"><h1>' +
+    // ---- баннер ----
+    let html =
+      '<section class="nh-banner">' +
+      '<div class="nh-hello"><p class="nh-hi">' +
       hello +
-      "!</h1><p>Решено сегодня: " +
-      t.questions +
-      " из " +
-      state.settings.goal +
-      " " +
-      plural(state.settings.goal, "вопроса", "вопросов", "вопросов") +
-      "</p></div>" +
-      heroStageHtml() +
-      heroHtml() +
-      ringHtml(goalPct) +
-      '</div><div class="hero-bottom">' +
-      rankLadderHtml() +
-      '<div class="hero-stats"><div class="hero-stat"><b>' +
-      streakNow() +
-      (state.streak.freezes ? '<small class="frz"> ❄️' + state.streak.freezes + "</small>" : "") +
-      "</b><span>дней подряд</span></div>" +
-      '<div class="hero-stat"><b>' +
-      tp.done +
-      "/" +
-      tp.total +
-      "</b><span>уроков</span></div>" +
-      '<div class="hero-stat"><b>' +
-      accuracy() +
-      "%</b><span>точность</span></div></div></div></div></section>";
+      (name ? "," : "") +
+      "</p><h1>" +
+      (name ? esc(name) + "! 👋" : "Рады вас видеть! 👋") +
+      '</h1><p class="nh-quote">«' +
+      esc(quote) +
+      '»</p><div class="nh-actions"><a class="btn-glow" href="#/lesson/' +
+      cont.id +
+      '"><span class="bg-ico">▶</span>Продолжить обучение</a><a class="nh-link" href="#/paths"><span class="nh-em">📊</span>Моя траектория <span class="nh-arr">→</span></a></div></div>' +
+      '<div class="nh-path"><div class="nh-path-head"><b>Твой путь в BIM</b><a href="#/ranks">Все уровни →</a></div>' +
+      '<div class="nh-rank"><span class="nh-hex"><svg viewBox="0 0 40 44" aria-hidden="true"><path d="M20 2 L37 12 V32 L20 42 L3 32 V12 Z"/></svg><b>' +
+      (ri + 1) +
+      '</b></span><div class="nh-rank-body"><div class="nh-rank-top"><b>' +
+      esc(r.cur.title) +
+      "</b><span>" +
+      state.xp +
+      (r.next ? " / " + r.next.min : "") +
+      ' XP</span></div><div class="nh-xpbar"><i style="width:' +
+      Math.max(2, Math.min(100, xpPct)) +
+      '%"></i></div><small>' +
+      (r.next ? "Следующий уровень: " + esc(r.next.title) : "Высший уровень — вы BIM-эксперт") +
+      "</small></div></div>" +
+      '<div class="nh-chips">' +
+      chip("🔥", streakNow(), plural(streakNow(), "день подряд", "дня подряд", "дней подряд")) +
+      chip("📘", t.questions + " / " + goal, "вопросов сегодня") +
+      chip("🎯", accuracy() + "%", "точность ответов") +
+      "</div></div>" +
+      (COV
+        ? '<div class="nh-scene"><div class="nh-scene-bg">' + COV.scene() + "</div>" + heroStageHtml("desk") + '<div class="nh-desk">' + COV.desk() + "</div></div>"
+        : "") +
+      "</section>";
 
-    // На компьютере главная делится на основную и боковую колонки,
-    // на телефоне блоки идут одной лентой в прежнем порядке (order).
-    const block = (n, inner) => '<div class="ho" style="order:' + n + '">' + inner + "</div>";
-    let main = "";
-    let side = "";
+    // ---- продолжить · задания · активность ----
+    const qk = todayKey();
+    const quests = todayQuests(qk);
+    const qDone = state.quests[qk] || [];
+    const qDay = state.days[qk] || {};
+    const qn = quests.filter((q) => qDone.indexOf(q.id) >= 0).length;
+    const ringC = 2 * Math.PI * 34;
+    const toReview = reviewLessons().length;
+    const dailyDone = (t.daily || 0) > 0;
+    const names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+    const wk = weekDays(weekStart(qk));
+    const mini = (em, v, label) => '<div class="nh-mini"><span class="nh-em">' + em + "</span><div><b>" + v + "</b><small>" + label + "</small></div></div>";
 
-    main += block(1,
-      '<section class="section"><div class="section-head"><h2>Продолжить</h2><a href="#/courses">все курсы</a></div>' +
-      '<a class="card" href="#/lesson/' +
+    html +=
+      '<div class="nh-row2">' +
+      '<section class="nh-card nh-continue"><div class="nh-card-head"><h2>Продолжить обучение</h2><a href="#/courses">Смотреть все →</a></div>' +
+      '<a class="nh-cont" href="#/lesson/' +
       cont.id +
       '" style="--accent:' +
-      (courseById[lessonCourse[cont.id]] || {}).accent +
-      '"><div class="row"><span class="chip accent">' +
-      esc((courseById[lessonCourse[cont.id]] || {}).title) +
-      '</span><span class="chip">' +
-      cont.minutes +
-      ' мин</span></div><h3 style="margin-top:10px">' +
+      cc.accent +
+      '"><div class="nh-cover">' +
+      (COV ? COV.cover(cc) : "") +
+      '</div><div class="nh-cont-body"><span class="chip accent">' +
+      esc(cc.title) +
+      "</span><h3>" +
       esc(cont.title) +
       "</h3><p>" +
       esc(cont.goal || "") +
-      "</p></a></section>");
-
-    const dailyDone = (todayStats().daily || 0) > 0;
-    const toReview = reviewLessons().length;
-    main += block(2,
-      '<section class="section"><div class="section-head"><h2>Сегодня</h2></div><a class="daily-cta' +
+      '</p><div class="nh-prog"><div class="progress"><i style="width:' +
+      cp.pct +
+      '%"></i></div><b>' +
+      cp.pct +
+      '%</b></div><div class="nh-meta"><span>📘 ' +
+      cp.done +
+      " из " +
+      cp.total +
+      " " +
+      plural(cp.total, "урока", "уроков", "уроков") +
+      "</span><span>⏱ Осталось: " +
+      fmtMinutes(left) +
+      '</span></div></div><span class="nh-play" aria-hidden="true">▶</span></a>' +
+      '<a class="nh-daily' +
       (dailyDone ? " done" : "") +
-      '" href="#/quiz/daily/1"><span class="dc-ico">' +
+      '" href="#/quiz/daily/1"><span class="nh-em">' +
       (dailyDone ? "✓" : "⚡") +
-      '</span><span class="dc-body"><b>Тренировка дня</b><span>' +
-      (dailyDone ? "сегодня уже пройдена — можно ещё раз" : "10 вопросов: ошибки, слабые темы и новое · +10 XP") +
-      "</span></span></a>" +
-      (toReview
-        ? '<a class="review-cta" href="#/review">↻ Пора повторить: ' + toReview + " " + plural(toReview, "тема", "темы", "тем") + "</a>"
-        : "") +
-      "</section>");
+      "</span><b>Тренировка дня</b><small>" +
+      (dailyDone ? "пройдена — можно ещё раз" : "10 вопросов · +10 XP") +
+      "</small></a>" +
+      (toReview ? '<a class="nh-review" href="#/review">↻ Пора повторить: ' + toReview + " " + plural(toReview, "тема", "темы", "тем") + "</a>" : "") +
+      "</section>" +
+      '<section class="nh-card nh-quests"><div class="nh-card-head"><h2>Задания на сегодня</h2><span class="muted small">+10 XP за каждое</span></div><div class="nh-q">' +
+      '<div class="nh-qring"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="34" class="qr-track"/><circle cx="40" cy="40" r="34" class="qr-bar' + (qn ? "" : " zero") + '" stroke-dasharray="' +
+      ((qn / 3) * ringC).toFixed(1) +
+      " " +
+      ringC.toFixed(1) +
+      '"/></svg><b>' +
+      qn +
+      "/3</b><small>выполнено</small></div><ul>" +
+      quests
+        .map((q) => {
+          const ok = qDone.indexOf(q.id) >= 0;
+          const v = Math.min(q.need, qDay[q.f] || 0);
+          return (
+            '<li class="' +
+            (ok ? "on" : "") +
+            '"><span class="q-box">' +
+            (ok ? "✓" : "") +
+            '</span><span class="q-t">' +
+            esc(q.t) +
+            '</span><span class="q-n">' +
+            (q.need > 1 ? v + "/" + q.need : "") +
+            "</span></li>"
+          );
+        })
+        .join("") +
+      "</ul></div></section>" +
+      '<section class="nh-card nh-activity"><div class="nh-card-head"><h2>Ваша активность</h2><a href="#/more">Смотреть больше →</a></div><div class="nh-week">' +
+      wk
+        .map((k, i) => {
+          const q = (state.days[k] || {}).questions || 0;
+          const met = q >= goal;
+          const today = k === qk;
+          return (
+            '<div class="nh-day' +
+            (met ? " met" : "") +
+            (today ? " today" : "") +
+            (q > 0 && !met ? " some" : "") +
+            '"><span>' +
+            (met ? "✓" : today ? names[i] : "") +
+            "</span><small>" +
+            names[i] +
+            "</small></div>"
+          );
+        })
+        .join("") +
+      '</div><div class="nh-minis">' +
+      mini("🔥", streakNow(), plural(streakNow(), "день подряд", "дня подряд", "дней подряд")) +
+      mini("⭐", state.xp, "всего XP") +
+      mini("📊", lessonsDone(), "пройдено уроков") +
+      mini("🎯", accuracy() + "%", "средняя точность") +
+      "</div></section></div>";
 
-    side += block(3, questsHtml());
+    // ---- мои курсы ----
+    html += '<section class="nh-courses" id="nhCourses">' + homeCoursesHtml() + "</section>";
 
-    side += block(4,
-      '<section class="section"><div class="grid grid-2 tiles">' +
-      actionTile("#/quiz/mistakes/all", "🎯", "Мои ошибки", due ? due + " к повтору" : "всё закрыто") +
-      actionTile("#/paths", "🧭", "Траектории", "путь к роли и сертификат") +
-      actionTile("#/cases", "🧩", "Кейсы", "решения на проекте") +
-      actionTile("#/games", "🎮", "Игры", "пары, блиц, тренажёры") +
-      actionTile("#/interview", "💼", "Собеседование", INTERVIEW_SIZE + " вопросов на время") +
-      actionTile("#/cards", "🃏", "Карточки", dueCards().length ? dueCards().length + " к повтору" : "термины") +
-      "</div></section>");
+    // ---- быстрый доступ ----
+    const QA = [
+      ["#/games", "🎮", "Игры и тренажёры", "пары, блиц, тренажёры", "#7c5cff"],
+      ["#/quiz/mistakes/all", "🎯", "Мои ошибки", due ? due + " к повтору" : "всё закрыто", "#ff4f7b"],
+      ["#/paths", "🧭", "Траектории", "путь к роли и сертификат", "#ff8a3d"],
+      ["#/cases", "🧩", "Кейсы", "решения на проекте", "#22c55e"],
+      ["#/cards", "🃏", "Карточки", dueCards().length ? dueCards().length + " к повтору" : "термины", "#3b82f6"],
+      ["#/interview", "💼", "Собеседование", INTERVIEW_SIZE + " вопросов на время", "#a855f7"]
+    ];
+    html +=
+      '<section class="nh-quick"><div class="nh-card-head"><h2>Быстрый доступ</h2></div><div class="nh-qa">' +
+      QA.map(
+        (x) =>
+          '<a class="nh-qa-tile" href="' +
+          x[0] +
+          '" style="--c:' +
+          x[4] +
+          '"><span class="nh-qa-ico">' +
+          x[1] +
+          '</span><span class="nh-qa-text"><b>' +
+          esc(x[2]) +
+          "</b><small>" +
+          esc(x[3]) +
+          '</small></span><span class="nh-qa-go" aria-hidden="true">›</span></a>'
+      ).join("") +
+      "</div></section>";
 
-    main += block(5,
-      '<section class="section"><div class="section-head"><h2>Курсы</h2><a href="#/courses">все</a></div><div class="grid course-grid">' +
-      CONTENT.courses.map(courseCard).join("") +
-      "</div></section>");
-
-    if (termOfDay) {
-      side += block(6,
-        '<section class="section"><div class="section-head"><h2>Термин дня</h2></div><div class="card"><div class="row spread"><h3>' +
-        esc(termOfDay.term) +
-        '</h3><span class="chip">' +
-        esc((courseById[termOfDay.course] || {}).title || "BIM") +
-        "</span></div><p>" +
-        esc(termOfDay.text) +
-        "</p></div></section>");
-    }
-
-
-
-    html += '<div class="home-grid"><div class="home-main">' + main + '</div><div class="home-side">' + side + "</div></div>";
-    view.innerHTML = html;
+    view.innerHTML = '<div class="nh">' + html + "</div>";
     startHero();
   }
+
+  const HOME_QUOTES = [
+    "Больше практики — ближе к экспертности. Продолжай в том же духе!",
+    "Модель без порядка — просто красивая картинка. Порядок начинается с тебя.",
+    "Один урок в день — это 30 уроков в месяц.",
+    "Ошибка в тесте дешевле ошибки на стройке.",
+    "Сначала оси и уровни — потом всё остальное.",
+    "Каждая синхронизация — маленький шаг команды вперёд.",
+    "Хороший координатор находит причину, а не тысячу коллизий."
+  ];
+  let homeTab = "all";
+
+  function fmtMinutes(m) {
+    if (!m) return "всё пройдено";
+    const h = Math.floor(m / 60);
+    return (h ? h + " ч " : "") + (m % 60) + " мин";
+  }
+
+  function displayName() {
+    if (state.settings.name) return state.settings.name.split(/\s+/)[0];
+    return "";
+  }
+
+  function homeCoursesHtml() {
+    const all = CONTENT.courses.map((c) => ({ c: c, p: courseProgress(c) }));
+    const inProg = all.filter((x) => x.p.done > 0 && x.p.pct < 100);
+    const done = all.filter((x) => x.p.pct === 100);
+    // «Все курсы» на главной — четыре самых актуальных: начатые, затем новые, завершённые в конце
+    const rankOf = (x) => (x.p.pct === 100 ? 2 : x.p.done > 0 ? 0 : 1);
+    const top = all.slice().sort((x, y) => rankOf(x) - rankOf(y)).slice(0, 4);
+    const list = homeTab === "progress" ? inProg : homeTab === "done" ? done : top;
+    const tab = (id, label, n) =>
+      '<button class="nh-tab' + (homeTab === id ? " on" : "") + '" data-act="home-tab" data-t="' + id + '">' + label + (n != null ? ' <span class="nh-badge">' + n + "</span>" : "") + "</button>";
+    return (
+      '<div class="nh-courses-head"><h2>Мои курсы</h2><div class="nh-tabs" role="tablist">' +
+      tab("all", "Все курсы") +
+      tab("progress", "В процессе", inProg.length) +
+      tab("done", "Завершённые", done.length) +
+      '</div><a class="nh-all" href="#/courses">Смотреть все →</a></div>' +
+      (list.length
+        ? '<div class="nh-course-row">' + list.map((x) => nhCourseCard(x.c, x.p)).join("") + "</div>"
+        : '<div class="nh-empty">' + (homeTab === "done" ? "Завершённых курсов пока нет — первый уже близко." : "Начните любой курс — он появится здесь.") + "</div>")
+    );
+  }
+
+  function nhCourseCard(c, p) {
+    const COV = window.BIM_COVERS;
+    return (
+      '<a class="nh-course' +
+      (p.pct === 100 ? " is-done" : "") +
+      '" href="#/course/' +
+      c.id +
+      '" style="--accent:' +
+      c.accent +
+      '"><div class="nh-course-top"><div class="nh-cover">' +
+      (COV ? COV.cover(c) : "") +
+      '</div><div class="nh-course-body"><span class="nh-tag">' +
+      esc(c.title) +
+      "</span><h3>" +
+      esc(c.subtitle) +
+      "</h3><p>" +
+      esc(c.summary) +
+      '</p></div></div><div class="nh-course-foot"><div class="nh-prog"><div class="progress"><i style="width:' +
+      p.pct +
+      '%"></i></div><b>' +
+      p.pct +
+      '%</b></div><div class="nh-course-meta"><span>📘 ' +
+      p.done +
+      " из " +
+      p.total +
+      " " +
+      plural(p.total, "урока", "уроков", "уроков") +
+      '</span><span class="nh-go" aria-hidden="true">→</span></div></div></a>'
+    );
+  }
+
+  function renderRanks() {
+    setTop("Уровни", "твой путь в BIM");
+    const r = rank();
+    const idx = Math.max(0, RANKS.indexOf(r.cur));
+    view.innerHTML =
+      '<section class="section">' +
+      RANKS.map((x, i) => {
+        const next = RANKS[i + 1];
+        const state_ = i < idx ? "passed" : i === idx ? "current" : "locked";
+        return (
+          '<div class="rank-row ' +
+          state_ +
+          '"><span class="nh-hex small"><svg viewBox="0 0 40 44" aria-hidden="true"><path d="M20 2 L37 12 V32 L20 42 L3 32 V12 Z"/></svg><b>' +
+          (i + 1) +
+          "</b></span><div><b>" +
+          esc(x.title) +
+          "</b><small>" +
+          (next ? x.min + "–" + (next.min - 1) + " XP" : "от " + x.min + " XP") +
+          (i === idx ? " · вы здесь, " + state.xp + " XP" : "") +
+          "</small></div><span>" +
+          (i < idx ? "✓" : i === idx ? "●" : "🔒") +
+          "</span></div>"
+        );
+      }).join("") +
+      '</section><section class="section"><div class="card"><h3>Как получать XP</h3><ul class="bullets"><li>Верный ответ в тесте — 3 XP</li><li>Пройденный урок — 12 XP</li><li>Задание дня — 10 XP, тренировка дня — ещё 10</li><li>Экзамен на 80% и выше — 25 XP, собеседование — 30</li><li>Игры и кейсы — от 2 до 15 XP</li></ul></div></section>';
+  }
+
 
   function actionTile(href, em, title, sub) {
     return (
@@ -3652,13 +3831,13 @@
     ["Опять ошибка в тесте…", "Ошибки — это тоже прогресс. Повторим!"],
     ["Как по-английски «рабочий набор»?", "Workset. Легко!"]
   ];
-  const ACTOR_W = 92;
+  let ACTOR_W = 92;
   const REDUCED = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   let stage = null;
 
-  function heroStageHtml() {
+  function heroStageHtml(mode) {
     if (!HEROES || state.settings.hero === "off") return "";
-    return '<div class="hero-stage" id="heroStage"></div>';
+    return '<div class="hero-stage" id="heroStage"' + (mode ? ' data-mode="' + mode + '"' : "") + "></div>";
   }
 
   function stageWidth() {
@@ -3692,8 +3871,12 @@
   function startStage() {
     stopStage();
     const el = document.getElementById("heroStage");
-    if (!el || !HEROES || !window.matchMedia || !matchMedia("(min-width: 1024px)").matches) return false;
-    const count = Math.max(1, Math.min(3, state.settings.heroCount || 3));
+    if (!el || !HEROES || !window.matchMedia) return false;
+    const desk = el.dataset.mode === "desk";
+    const wide = matchMedia("(min-width: 1024px)").matches;
+    if (!desk && !wide) return false;
+    // «за столом»: главный герой работает за столом, остальные заходят к нему поговорить
+    const count = desk && !matchMedia("(min-width: 700px)").matches ? 1 : Math.max(1, Math.min(3, state.settings.heroCount || 3));
     const ids = [state.settings.hero]
       .concat(shuffle(HEROES.chars.map((c) => c.id).filter((id) => id !== state.settings.hero)))
       .slice(0, count);
@@ -3715,8 +3898,11 @@
             '"><div class="actor-bubble" aria-live="polite"></div><div class="actor-art"></div></div>'
         )
         .join("");
-    stage = { el: el, actors: [], last: performance.now(), talkIn: 4 + Math.random() * 3, talk: null, sleeping: base === "sleep", base: base, raf: 0 };
+    ACTOR_W = (el.querySelector(".actor") || {}).offsetWidth || 92;
+    stage = { el: el, desk: desk, actors: [], last: performance.now(), talkIn: 4 + Math.random() * 3, talk: null, sleeping: base === "sleep", base: base, raf: 0 };
     const W = stageWidth();
+    const deskX = deskSpot();
+    const vMax = visitorMax();
     stage.actors = ids.map((id, i) => {
       const node = el.querySelector('.actor[data-i="' + i + '"]');
       return {
@@ -3726,8 +3912,8 @@
         node: node,
         art: node.querySelector(".actor-art"),
         bubble: node.querySelector(".actor-bubble"),
-        x: count === 1 ? W / 2 : (W * i) / (count - 1),
-        dir: i === count - 1 && count > 1 ? -1 : 1,
+        x: desk ? (i === 0 ? deskX : (vMax * (i - 1)) / Math.max(1, count - 2)) : count === 1 ? W / 2 : (W * i) / (count - 1),
+        dir: desk ? 1 : i === count - 1 && count > 1 ? -1 : 1,
         target: null,
         wait: 1.5 + Math.random() * 3,
         st: ""
@@ -3749,6 +3935,14 @@
     return true;
   }
 
+  // место главного героя за столом и зона, где гуляют гости
+  function deskSpot() {
+    return Math.max(0, Math.min(stageWidth(), stage.el.clientWidth * 0.66 - ACTOR_W / 2));
+  }
+  function visitorMax() {
+    return Math.max(0, Math.min(deskSpot() - 120, stage.el.clientWidth * 0.42 - ACTOR_W));
+  }
+
   function idleActivity() {
     const h = new Date().getHours();
     const pool = ["work", "work", "read", "game", "idle"];
@@ -3759,11 +3953,22 @@
   function startTalk() {
     const free = stage.actors.filter((a) => !a.talking);
     if (free.length < 2) return;
+    const lines0 = STAGE_TALKS[Math.floor(Math.random() * STAGE_TALKS.length)];
+    if (stage.desk) {
+      const main = stage.actors[0];
+      const guest = shuffle(free.filter((a) => !a.main))[0];
+      if (!guest || main.talking) return;
+      stage.talk = { a: guest, b: main, lines: lines0, phase: "approach" };
+      guest.target = Math.max(0, main.x - ACTOR_W * 1.1);
+      guest.talking = main.talking = true;
+      setActorState(guest, "idle");
+      setActorState(main, "idle");
+      return;
+    }
     const pair = shuffle(free).slice(0, 2).sort((p, q) => p.x - q.x);
     const W = stageWidth();
     const mid = Math.max(60, Math.min(W - 60, (pair[0].x + pair[1].x) / 2));
-    const lines = STAGE_TALKS[Math.floor(Math.random() * STAGE_TALKS.length)];
-    stage.talk = { a: pair[0], b: pair[1], lines: lines, phase: "approach" };
+    stage.talk = { a: pair[0], b: pair[1], lines: lines0, phase: "approach" };
     pair[0].target = Math.max(0, mid - 58);
     pair[1].target = Math.min(W, mid + 58);
     pair.forEach((a) => {
@@ -3815,9 +4020,9 @@
       } else if (!a.talking && !stage.sleeping && stage.base !== "celebrate") {
         a.wait -= dt;
         if (a.wait <= 0) {
-          if (Math.random() < 0.55) {
+          if (Math.random() < 0.55 && !(stage.desk && a.main)) {
             setActorState(a, "idle");
-            a.target = Math.random() * W;
+            a.target = Math.random() * (stage.desk ? visitorMax() : W);
             a.wait = 1 + Math.random() * 2;
           } else {
             setActorState(a, a.main && stage.base === "cheer" ? "cheer" : idleActivity());
@@ -3825,6 +4030,7 @@
           }
         }
       }
+      if (stage.desk && a.main) a.x = deskSpot();
       a.x = Math.max(0, Math.min(W, a.x));
       a.node.style.transform = "translateX(" + a.x.toFixed(1) + "px)";
       a.node.classList.toggle("flip", a.dir < 0);
@@ -3852,6 +4058,10 @@
               a.talking = false;
               a.wait = 0.5 + Math.random() * 2;
             });
+            if (stage.desk) {
+              t.b.dir = 1;
+              t.a.target = Math.random() * visitorMax();
+            }
             stage.talk = null;
             stage.talkIn = 9 + Math.random() * 8;
           }, 3100);
@@ -4842,6 +5052,11 @@
         : "") +
       "</div></section>";
 
+    html +=
+      '<section class="section"><div class="section-head"><h2>Как к вам обращаться</h2></div><div class="card"><input class="answer-input" id="userName" type="text" maxlength="40" autocomplete="name" placeholder="Имя и фамилия" value="' +
+      esc(state.settings.name || "") +
+      '" /><p class="muted small mt">Имя появится в приветствии на главной и в сертификатах.</p></div></section>';
+
     html += syncSectionHtml();
 
     html +=
@@ -4963,6 +5178,14 @@
       "</p></div></section>";
 
     view.innerHTML = html;
+    const nameInput = document.getElementById("userName");
+    if (nameInput)
+      nameInput.addEventListener("change", () => {
+        state.settings.name = nameInput.value.trim().slice(0, 40);
+        save();
+        updateUserChip();
+        toast("Имя сохранено");
+      });
   }
 
   function statTile(v, label) {
@@ -5075,6 +5298,12 @@
     }
     if (act === "hero-tap") return heroSay();
     if (act === "stage-tap") return stageTap(Number(el.dataset.i));
+    if (act === "home-tab") {
+      homeTab = el.dataset.t;
+      const box = document.getElementById("nhCourses");
+      if (box) box.innerHTML = homeCoursesHtml();
+      return;
+    }
     if (act === "hero-count") {
       state.settings.heroCount = Number(el.dataset.n);
       save();
@@ -5496,6 +5725,84 @@
 
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
 
+  /* ================= шапка: поиск, уведомления, профиль ================= */
+
+  const topSearch = document.getElementById("topSearch");
+  if (topSearch)
+    topSearch.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const inp = document.getElementById("topSearchInput");
+      const q = inp.value.trim();
+      location.hash = "#/search" + (q ? "?q=" + encodeURIComponent(q) : "");
+      inp.value = "";
+      inp.blur();
+    });
+
+  function updateUserChip() {
+    const el = document.getElementById("userChip");
+    if (!el) return;
+    const full = (state.settings.name || "").trim();
+    const ini = full
+      ? full
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((w) => w[0])
+          .join("")
+          .toUpperCase()
+      : "BA";
+    el.innerHTML =
+      '<span class="uc-ava">' + esc(ini) + '</span><span class="uc-text"><b>' + esc(full || "Гость") + "</b><small>" + esc(rank().cur.title) + "</small></span>";
+  }
+
+  function bellItems() {
+    const k = todayKey();
+    const items = [];
+    const due = dueMistakes().length;
+    if (due) items.push(["#/quiz/mistakes/all", "🎯", due + " " + plural(due, "ошибка ждёт", "ошибки ждут", "ошибок ждут") + " повтора"]);
+    const rv = reviewLessons().length;
+    if (rv) items.push(["#/review", "↻", rv + " " + plural(rv, "тема выцветает", "темы выцветают", "тем выцветают") + " — пора повторить"]);
+    const qLeft = todayQuests(k).filter((q) => (state.quests[k] || []).indexOf(q.id) < 0).length;
+    if (qLeft) items.push(["#/", "✅", "Задания на сегодня: осталось " + qLeft + " из 3"]);
+    const cards = dueCards().length;
+    if (cards) items.push(["#/cards", "🃏", cards + " " + plural(cards, "карточка", "карточки", "карточек") + " к повтору"]);
+    if (!(todayStats().daily > 0)) items.push(["#/quiz/daily/1", "⚡", "Тренировка дня ещё не пройдена"]);
+    return items;
+  }
+
+  function updateBell() {
+    const dot = document.getElementById("bellDot");
+    if (dot) dot.hidden = bellItems().length === 0;
+  }
+
+  function closeBell() {
+    const pop = document.getElementById("bellPop");
+    const btn = document.getElementById("bellBtn");
+    if (pop) pop.hidden = true;
+    if (btn) btn.setAttribute("aria-expanded", "false");
+  }
+
+  const bellBtn = document.getElementById("bellBtn");
+  if (bellBtn)
+    bellBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const pop = document.getElementById("bellPop");
+      if (!pop.hidden) return closeBell();
+      const items = bellItems();
+      pop.innerHTML =
+        '<b class="bp-head">Уведомления</b>' +
+        (items.length
+          ? items.map((x) => '<a class="bp-item" href="' + x[0] + '"><span>' + x[1] + "</span>" + esc(x[2]) + "</a>").join("")
+          : '<p class="bp-empty">Всё сделано — на сегодня новостей нет 🎉</p>');
+      pop.hidden = false;
+      bellBtn.setAttribute("aria-expanded", "true");
+    });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".bell-pop")) closeBell();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeBell();
+  });
+
   /* ================= маршрутизация ================= */
 
   function setTop(title, sub) {
@@ -5514,6 +5821,9 @@
 
   function route() {
     document.body.dataset.route = currentRoute()[0];
+    closeBell();
+    updateBell();
+    updateUserChip();
     if (/access_token=|error_description=/.test(location.hash)) {
       const err = /error_description=([^&]+)/.exec(location.hash);
       setTop("Вход", "синхронизация");
@@ -5591,6 +5901,9 @@
         break;
       case "review":
         renderReview();
+        break;
+      case "ranks":
+        renderRanks();
         break;
       case "vocab":
         renderVocab(params);

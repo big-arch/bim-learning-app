@@ -222,6 +222,26 @@ C.courses.forEach((c) =>
   });
 });
 
+// Обложки курсов и сцена главной: файл подключён и рисует каждую обложку.
+if (!fs.existsSync(path.join(root, "covers.js"))) errors.push("нет файла covers.js");
+else {
+  if (!html.includes("covers.js")) errors.push("covers.js не подключён в index.html");
+  if (!sw.includes("./covers.js")) errors.push("covers.js не добавлен в APP_SHELL в sw.js");
+  require(path.join(root, "covers.js"));
+  const COV = global.window.BIM_COVERS;
+  if (!COV) errors.push("covers.js: нет window.BIM_COVERS");
+  else {
+    C.courses.forEach((c) => {
+      try {
+        if (!/<svg/.test(COV.cover(c))) errors.push("обложка " + c.id + ": пустая");
+      } catch (e) {
+        errors.push("обложка " + c.id + ": " + e.message);
+      }
+    });
+    if (!/<svg/.test(COV.scene()) || !/<svg/.test(COV.desk())) errors.push("covers.js: сцена главной не рисуется");
+  }
+}
+
 // Компаньоны: оба стиля должны рисовать каждого героя во всех состояниях.
 ["heroes.js", "heroes-pixel.js", "heroes.css"].forEach((f) => {
   if (!fs.existsSync(path.join(root, f))) return errors.push("нет файла " + f);
