@@ -13,6 +13,7 @@ window.BIM_CONTENT.courses.push({
   lessons: [
     {
       id: "rs-01",
+      source: { title: "Autodesk · Установка Revit Server 2026", checked: "31.10.2026", url: "https://help.autodesk.com/cloudhelp/2026/ENU/Revit-Installation/files/GUID-B4C2C529-26D8-461B-B06A-7E65744A3C72.htm" },
       title: "Что такое Revit Server и когда он нужен",
       minutes: 12,
       level: "Средний",
@@ -64,7 +65,7 @@ window.BIM_CONTENT.courses.push({
           type: "note",
           kind: "warn",
           title: "Проверьте, есть ли Revit Server для вашей версии",
-          text: "Revit Server выпускался для версий Revit по 2021 включительно; в более новых версиях Autodesk его не поставляет, предлагая вместо него облачную совместную работу. Поэтому решение о Revit Server всегда связано с решением о версии Revit: компании, которые остаются на 2020–2021, продолжают им пользоваться. Прежде чем что-то планировать, уточните для своей версии и своей формы поставки — это ключевой вопрос, а не деталь."
+          text: "Autodesk документирует установку Revit Server 2026. Подбирайте сервер под версию Revit рабочих станций и сверяйте требования конкретного выпуска."
         },
         {
           type: "note",

@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  const APP_VERSION = "2026-07-29-v1";
+  const APP_VERSION = document.querySelector('meta[name="app-version"]').content;
   const STORE_KEY = "bim-academy-state-v1";
   const CONTENT = window.BIM_CONTENT || { courses: [], glossary: [], videos: [] };
   const FIGURES = window.BIM_FIGURES || {};
@@ -211,7 +211,7 @@
       lesson.index = li;
       allLessons.push(lesson);
       (lesson.questions || []).forEach((q, qi) => {
-        q.id = lesson.id + "#" + qi;
+        q.id = lesson.id + "#" + (q.key || qi);
         q.courseId = course.id;
         q.lessonId = lesson.id;
         allQuestions.push(q);
@@ -348,7 +348,7 @@
   function bumpDay(field, n) {
     const key = todayKey();
     if (!state.days[key]) state.days[key] = { lessons: 0, questions: 0 };
-    state.days[key][field] = (state.days[key][field] || 0) + n;
+    window.BIM_LEARNING.add(state, deviceId, ["days", key, field], n);
     checkStreak();
   }
 
@@ -486,6 +486,41 @@
 
   /* ================= экраны ================= */
 
+  function planCard() {
+    const course = courseById[state.settings.planCourse];
+    const options = CONTENT.courses.map(c => '<option value="' + esc(c.id) + '"' + (course === c ? ' selected' : '') + '>' + esc(c.title) + '</option>').join("");
+    const minutes = state.settings.planMinutes || 15;
+    const skipped = state.settings.diagnosed || [];
+    const rolePath = PATHS.find(path => path.id === state.settings.planRole);
+    const pool = course ? (rolePath ? [...course.lessons].sort((a,b) => Number(rolePath.lessons.includes(b.id)) - Number(rolePath.lessons.includes(a.id))) : course.lessons) : [];
+    const candidates = pool.filter(l => !state.lessons[l.id]?.done && !skipped.includes(l.id)) || [];
+    const lesson = candidates.find(l => l.minutes <= minutes) || candidates[0];
+    const due = course && dueMistakes().some(id => questionById[id]?.courseId === course.id);
+    let action = "";
+    if (course) {
+      const href = due ? "#/quiz/plan-errors/" + course.id : lesson ? "#/lesson/" + lesson.id : "#/quiz/exam/" + course.id;
+      const title = due ? "Повторить ошибки" : lesson ? lesson.title + " · " + lesson.minutes + " мин" : "Пройти итоговый экзамен";
+      action = '<p>' + (state.settings.planGoal ? esc(state.settings.planGoal) + ' · ' : '') + esc(course.title) + ' · цель на день ' + minutes + ' мин</p><a class="btn primary" href="' + href + '">' + esc(title) + '</a>';
+    }
+    const roles = PATHS.map(p => '<option value="' + esc(p.id) + '"' + (p === rolePath ? ' selected' : '') + '>' + esc(p.title) + '</option>').join("");
+    return '<section class="nh-card plan-card"><h2>'  + (course ? "Следующий шаг" : "Чему хотите научиться?") + '</h2>' + action +
+      '<details' + (course ? '' : ' open') + '><summary>Настроить мой план</summary><form id="learningPlan"><p>Выберите направление или продолжайте пользоваться каталогом.</p><label>Моя цель <input name="goal" maxlength="100" placeholder="Например, выпустить комплект чертежей" value="' + esc(state.settings.planGoal || "") + '"></label> <label>Роль <select name="role"><option value="">Любая / изучаю для себя</option>' + roles + '</select></label> <label>Направление <select name="course"><option value="">Свободное обучение</option>' + options +
+      '</select></label> <label>Минут в день <select name="minutes">' + [5,15,30].map(n => '<option' + (n === minutes ? ' selected' : '') + '>' + n + '</option>').join("") +
+      '</select></label> <button class="btn soft">Сохранить</button></form>' +
+      (course ? '<a href="#/quiz/diagnostic/' + course.id + '">Пройти короткую диагностику</a>' : '') + '</details></section>';
+  }
+
+  document.addEventListener("submit", e => {
+    if (e.target.id !== "learningPlan") return;
+    e.preventDefault();
+    const form = new FormData(e.target);
+    state.settings.planGoal = String(form.get("goal") || "").trim();
+    state.settings.planRole = String(form.get("role"));
+    state.settings.planCourse = String(form.get("course"));
+    state.settings.planMinutes = Number(form.get("minutes"));
+    save(); renderHome();
+  });
+
   function renderHome() {
     setTop("BIM Academy", "Главная");
     const COV = window.BIM_COVERS;
@@ -494,7 +529,7 @@
     const name = displayName();
     const t = todayStats();
     const goal = state.settings.goal;
-    const cont = nextLesson();
+    const cont = courseById[state.settings.planCourse]?.lessons.find(l => !state.lessons[l.id]?.done && !(state.settings.diagnosed || []).includes(l.id)) || nextLesson();
     const cc = courseById[lessonCourse[cont.id]];
     const cp = courseProgress(cc);
     const left = cc.lessons.filter((l) => !(state.lessons[l.id] || {}).done).reduce((a, l) => a + (l.minutes || 0), 0);
@@ -518,7 +553,7 @@
       '»</p><div class="nh-actions"><a class="btn-glow" href="#/lesson/' +
       cont.id +
       '"><span class="bg-ico">▶</span>Продолжить обучение</a><a class="nh-link" href="#/paths"><span class="nh-em">📊</span>Моя траектория <span class="nh-arr">→</span></a></div></div>' +
-      '<div class="nh-path"><div class="nh-path-head"><b>Твой путь в BIM</b><a href="#/ranks">Все уровни →</a></div>' +
+      '<div class="nh-path"><div class="nh-path-head"><b>Ваш учебный маршрут</b><a href="#/ranks">Все уровни →</a></div>' +
       '<div class="nh-rank"><span class="nh-hex"><svg viewBox="0 0 40 44" aria-hidden="true"><path d="M20 2 L37 12 V32 L20 42 L3 32 V12 Z"/></svg><b>' +
       (ri + 1) +
       '</b></span><div class="nh-rank-body"><div class="nh-rank-top"><b>' +
@@ -673,7 +708,7 @@
       ).join("") +
       "</div></section>";
 
-    view.innerHTML = '<div class="nh">' + html + "</div>";
+    view.innerHTML = '<div class="nh">' + planCard() + html + "</div>";
     startHero();
   }
 
@@ -798,6 +833,7 @@
     setTop("Курсы", allLessons.length + " уроков · " + allQuestions.length + " вопросов");
     const tp = totalProgress();
     view.innerHTML =
+      '<img class="catalog-art" src="assets/workshop-banner.jpg" alt="Архитектурный макет в инженерной мастерской">' +
       '<section class="section"><div class="card"><div class="row spread"><div><h3>Общий прогресс</h3><p>' +
       tp.done +
       " из " +
@@ -830,7 +866,7 @@
       '<div style="--accent:' +
       course.accent +
       '">' +
-      '<section class="section"><div class="card"><div class="cc-head row">' +
+      '<section class="section"><div class="card"><img class="course-plate" src="assets/' + esc(id) + '.svg" alt=""><div class="cc-head row">' +
       courseIcon(course) +
       "<div><h3>" +
       esc(course.title) +
@@ -903,6 +939,7 @@
       (lesson.goal ? '<div class="goal"><b>Цель урока: </b>' + esc(lesson.goal) + "</div>" : "") +
       "</section>";
 
+    if (lesson.source) html += '<p class="muted"><a href="' + esc(lesson.source.url) + '" target="_blank" rel="noopener">' + esc(lesson.source.title) + '</a> · проверено ' + esc(lesson.source.checked) + '</p>';
     const blocks = lesson.blocks || [];
     const mid = blocks.length >= 4 ? Math.floor(blocks.length / 2) : -1;
     const isEn = course.id === "english";
@@ -958,6 +995,7 @@
 
     view.innerHTML = html;
     mountSims(view);
+
   }
 
   function renderBlock(b, opts) {
@@ -969,6 +1007,10 @@
       return at > 0 ? esc(i) + speakBtn(i.slice(0, at)) : esc(i);
     };
     switch (b.type) {
+      case "workshop":
+        return '<figure class="workshop-plate"><img src="assets/' + esc(b.course) + '.svg" alt=""><figcaption>Практическая мастерская · ' + b.number + ' / 10</figcaption></figure>';
+      case "solution":
+        return '<details class="workshop-solution"><summary>' + esc(b.title) + '</summary><p>' + esc(b.text) + '</p></details>';
       case "sim":
         return simBlockHtml(b.sim);
       case "text":
@@ -1135,7 +1177,15 @@
     let title = "Тест";
     let modeName = "Тест";
 
-    if (mode === "lesson") {
+    if (mode === "diagnostic" || mode === "plan-errors") {
+      const course = courseById[arg];
+      if (!course) return renderNotFound();
+      items = mode === "diagnostic"
+        ? shuffle(course.lessons).slice(0, 5).map(l => shuffle(l.questions)[0])
+        : dueMistakes().map(id => questionById[id]).filter(q => q?.courseId === arg).slice(0, 10);
+      modeName = mode === "diagnostic" ? "Диагностика" : "Повторение";
+      title = course.title + " · " + modeName;
+    } else if (mode === "lesson") {
       const lesson = lessonById[arg];
       if (!lesson) return renderNotFound();
       items = (lesson.questions || []).slice();
@@ -1470,13 +1520,12 @@
       "</button>";
 
     // статистика
-    state.answers.total++;
-    if (ok) state.answers.correct++;
-    const cs = state.byCourse[q.courseId] || { total: 0, correct: 0 };
-    cs.total++;
-    if (ok) cs.correct++;
-    state.byCourse[q.courseId] = cs;
-    if (ok) state.xp += 3;
+    window.BIM_LEARNING.add(state, deviceId, ["answers", "total"], 1);
+    if (ok) window.BIM_LEARNING.add(state, deviceId, ["answers", "correct"], 1);
+    state.byCourse[q.courseId] ||= {total: 0, correct: 0};
+    window.BIM_LEARNING.add(state, deviceId, ["byCourse", q.courseId, "total"], 1);
+    if (ok) window.BIM_LEARNING.add(state, deviceId, ["byCourse", q.courseId, "correct"], 1);
+    if (ok) window.BIM_LEARNING.add(state, deviceId, ["xp"], 3);
     bumpDay("questions", 1);
 
     quiz.run = ok ? (quiz.run || 0) + 1 : 0;
@@ -1527,13 +1576,13 @@
     if (quiz.mode === "exam" && pct >= 90) state.flags.exam90 = true;
     if (total >= 10 && pct === 100) state.flags.perfect = true;
     if (quiz.mode === "mistakes") state.flags.mistakes = true;
-    if (quiz.mode === "exam" && pct >= 80) state.xp += 25;
+    if (quiz.mode === "exam" && pct >= 80) window.BIM_LEARNING.add(state, deviceId, ["xp"], 25);
     state.companion.lastQuizAt = Date.now();
     state.companion.lastQuizPct = pct;
     if (quiz.lessonId) recordLessonQuiz(quiz.lessonId, pct, quiz.mode === "review");
     if (quiz.mode === "daily") {
       bumpDay("daily", 1);
-      state.xp += 10;
+      window.BIM_LEARNING.add(state, deviceId, ["xp"], 10);
     }
     checkQuests();
     const isInterview = quiz.mode === "interview";
@@ -1541,7 +1590,7 @@
       clearInterval(quizTimer);
       state.games.interviewBest = Math.max(state.games.interviewBest || 0, pct);
       state.games.played++;
-      if (pct >= 80) state.xp += 30;
+      if (pct >= 80) window.BIM_LEARNING.add(state, deviceId, ["xp"], 30);
     }
     save();
 
@@ -1576,6 +1625,12 @@
         : "") +
       "</p></section>";
 
+    if (quiz.mode === "diagnostic") {
+      const known = quiz.results.filter(r => r.ok).map(r => r.q.lessonId);
+      state.settings.diagnosed = [...new Set([...(state.settings.diagnosed || []), ...known])];
+      save();
+      html += '<p>В персональном плане пропущено тем по ответам этой диагностики: ' + known.length + '. Все уроки доступны в каталоге.</p><a class="btn primary" href="#/">Открыть план</a>';
+    }
     if (isInterview) html += interviewReport(quiz.results);
 
     if (quiz.wrong.length) {
@@ -2571,6 +2626,7 @@
     out.quests = mergeMap(A.quests, B.quests, (x, y) => unionBy(x, y, (q) => q));
     out.cases = mergeMap(A.cases, B.cases, (x, y) => Math.max(num(x), num(y)));
     out.xp = Math.max(num(A.xp), num(B.xp));
+    window.BIM_LEARNING.mergeCounters(A, B, out);
     out.updatedAt = Math.max(num(A.updatedAt), num(B.updatedAt));
     return out;
   }
@@ -2602,14 +2658,15 @@
     syncInfo.status = "syncing";
     refreshSyncUi();
     try {
-      const { data, error } = await sb.from("progress").select("state").eq("user_id", syncUser.id).maybeSingle();
-      if (error) throw error;
-      const remote = data ? data.state : null;
-      const merged = remote ? mergeStates(state, remote) : state;
-      if (!same(merged, state)) applyState(merged);
-      if (!remote || !same(merged, remote)) {
-        const up = await sb.from("progress").upsert({ user_id: syncUser.id, state: merged, device: deviceId, updated_at: new Date().toISOString() });
-        if (up.error) throw up.error;
+      const userId = syncUser.id;
+      const saved = await window.BIM_LEARNING.syncRow(sb, userId, deviceId, () => syncUser?.id === userId, remote => {
+        const merged = remote ? mergeStates(state, remote) : state;
+        if (!same(merged, state)) applyState(merged);
+        return merged;
+      });
+      if (!saved) {
+        syncAgain = true;
+        throw Error("Данные изменились на другом устройстве. Повторяем синхронизацию.");
       }
       syncInfo = { status: "ok", at: Date.now(), error: "" };
     } catch (e) {
@@ -2996,7 +3053,7 @@
     todayQuests(key).forEach((q) => {
       if (done.indexOf(q.id) < 0 && (day[q.f] || 0) >= q.need) {
         done.push(q.id);
-        state.xp += 10;
+        window.BIM_LEARNING.add(state, deviceId, ["xp"], 10);
         toast("Задание выполнено: " + q.t + " · +10 XP");
       }
     });
@@ -3006,7 +3063,7 @@
       const full = weekDays(wk).filter((k) => (state.quests[k] || []).length >= 3).length;
       if (full >= 5 && !state.flags["chest" + wk]) {
         state.flags["chest" + wk] = true;
-        state.xp += 50;
+        window.BIM_LEARNING.add(state, deviceId, ["xp"], 50);
         if ((state.streak.freezes || 0) < 2) state.streak.freezes = (state.streak.freezes || 0) + 1;
         toast("Недельный сундук: +50 XP и заморозка серии ❄️");
       }
@@ -3366,7 +3423,7 @@
       if (!r.saved) {
         r.saved = true;
         state.cases[id] = Math.max(prev || 0, r.score);
-        state.xp += r.score * 2;
+        window.BIM_LEARNING.add(state, deviceId, ["xp"], r.score * 2);
         bumpDay("cases", 1);
         checkQuests();
         save();
@@ -3399,8 +3456,8 @@
       "</span></div>" +
       (r.step === 0 ? '<section class="section"><div class="note tip"><b>' + c.icon + " Ситуация</b><p>" + esc(c.intro) + "</p></div></section>" : "") +
       '<section class="question"><span class="q-kind">Ваше решение</span><h2>' +
-      esc(st.text) +
-      '</h2><div class="options">' +
+      esc(st.text) + '</h2>' + (st.image ? '<img style="max-width:100%" src="' + esc(st.image) + '" alt="' + esc(st.alt) + '">' : '') +
+      '<div class="options">' +
       st.options
         .map((o, i) => {
           let cls = "option round";
@@ -3832,7 +3889,16 @@
     ["Как по-английски «рабочий набор»?", "Workset. Легко!"]
   ];
   let ACTOR_W = 92;
-  const REDUCED = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function resumeStage() {
+    if (!stage) return;
+    cancelAnimationFrame(stage.raf);
+    if (motionPreference.matches || document.hidden) return;
+    stage.last = performance.now();
+    stage.raf = requestAnimationFrame(stageTick);
+  }
+  document.addEventListener("visibilitychange", resumeStage);
+  motionPreference.addEventListener("change", resumeStage);
   let stage = null;
 
   function heroStageHtml(mode) {
@@ -3931,7 +3997,7 @@
         actorSay(stage.actors[0], heroPhrases(heroContext(), ch)[0], 4200);
       }
     }, 900);
-    stage.raf = requestAnimationFrame(stageTick);
+    resumeStage();
     return true;
   }
 
@@ -4007,7 +4073,7 @@
     stage.actors.forEach((a) => {
       if (a.target !== null) {
         const dx = a.target - a.x;
-        const step = REDUCED ? Math.abs(dx) : 46 * dt;
+        const step = 46 * dt;
         if (Math.abs(dx) <= step + 0.5) {
           a.x = a.target;
           a.target = null;
@@ -4245,15 +4311,15 @@
       const prev = state.games.matchBest[g.src];
       g.record = !g.mistakes && (!prev || g.time < prev);
       if (!g.mistakes) state.games.matchBest[g.src] = prev ? Math.min(prev, g.time) : g.time;
-      state.xp += g.mistakes ? 3 : 6;
+      window.BIM_LEARNING.add(state, deviceId, ["xp"], g.mistakes ? 3 : 6);
     } else if (g.kind === "order") {
       state.games.orderSolved += g.rounds.length;
-      state.xp += g.clean * 4 + 2;
+      window.BIM_LEARNING.add(state, deviceId, ["xp"], g.clean * 4 + 2);
     } else if (g.kind === "blitz") {
       const prev = state.games.blitzBest[g.src] || 0;
       g.record = g.correct > prev;
       state.games.blitzBest[g.src] = Math.max(prev, g.correct);
-      state.xp += g.correct;
+      window.BIM_LEARNING.add(state, deviceId, ["xp"], g.correct);
     }
     bumpDay("games", 1);
     checkQuests();
@@ -5177,6 +5243,7 @@
       APP_VERSION +
       "</p></div></section>";
 
+    if (localStorage.getItem(STORE_KEY + "-backup")) html += '<button class="btn" data-act="undo-import">Восстановить прогресс до импорта</button>';
     view.innerHTML = html;
     const nameInput = document.getElementById("userName");
     if (nameInput)
@@ -5205,6 +5272,16 @@
     if (!el) return;
     const act = el.dataset.act;
 
+    if (act === "undo-import") {
+      try {
+        const restored = validateProgress(JSON.parse(localStorage.getItem(STORE_KEY + "-backup")));
+        restored.resetAt = Math.max(Date.now(), (state.resetAt || 0) + 1);
+        state = restored;
+        save(); localStorage.removeItem(STORE_KEY + "-backup"); route();
+        toast("Прогресс до импорта восстановлен");
+      } catch { toast("Нет доступной копии до импорта"); }
+      return;
+    }
     if (act === "zoom-fig") return openZoom(el.dataset.fig, el);
     if (act === "game-start") {
       if (!startGame(el.dataset.kind, el.dataset.src)) return toast("Для этой игры пока мало данных");
@@ -5273,7 +5350,7 @@
         toast("Отметка снята");
       } else {
         state.lessons[id] = { done: true, at: Date.now() };
-        state.xp += 12;
+        window.BIM_LEARNING.add(state, deviceId, ["xp"], 12);
         bumpDay("lessons", 1);
         toast("Урок пройден. +12 XP");
         checkQuests();
@@ -5549,7 +5626,7 @@
       drill.idx++;
       drill.sel = null;
       if (drill.idx >= drill.items.length) {
-        state.xp += drill.correct * 2;
+        window.BIM_LEARNING.add(state, deviceId, ["xp"], drill.correct * 2);
         save();
         return renderDrill();
       }
@@ -5682,6 +5759,31 @@
     toast("Файл прогресса сохранён");
   }
 
+  function validateProgress(data, app) {
+    if ((app && app !== "bim-academy") || data?.v !== 1 || !data.lessons || !data.answers) throw Error("format");
+    const defaults = defaultState();
+    for (const [key, value] of Object.entries(defaults)) {
+      if (!(key in data)) continue;
+      if (data[key] === null || typeof data[key] !== typeof value || Array.isArray(value) !== Array.isArray(data[key])) throw Error(key);
+      if (typeof value === "object" && !Array.isArray(value)) {
+        defaults[key] = {...value, ...data[key]};
+      } else defaults[key] = data[key];
+    }
+    for (const n of [defaults.xp, defaults.answers.total, defaults.answers.correct]) {
+      if (!Number.isSafeInteger(n) || n < 0) throw Error("counter");
+    }
+    const plain = v => v && typeof v === "object" && !Array.isArray(v);
+    if (defaults.answers.correct > defaults.answers.total || !Object.values(defaults.lessons).every(plain) ||
+        !Array.isArray(defaults.streak.frozen) || !defaults.history.every(plain) ||
+        (defaults.settings.diagnosed && !Array.isArray(defaults.settings.diagnosed)) ||
+        !Object.values(defaults.days).every(plain) || !Object.values(defaults.mistakes).every(plain)) throw Error("structure");
+    if (data.contributions && !plain(data.contributions)) throw Error("ledger");
+    for (const row of Object.values(data.contributions || {})) {
+      if (!plain(row) || Object.keys(row).some(id => !/^[a-z0-9-]+$/i.test(id) || id in Object.prototype) || Object.values(row).some(n => !Number.isSafeInteger(n) || n < 0)) throw Error("ledger");
+    }
+    return {...defaults, contributions: data.contributions || {}, resetAt: Number(data.resetAt) || 0};
+  }
+
   function importData(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -5690,8 +5792,11 @@
       try {
         const parsed = JSON.parse(reader.result);
         const incoming = parsed.state || parsed;
-        if (!incoming || typeof incoming !== "object") throw new Error("bad");
-        state = Object.assign(defaultState(), incoming);
+        const previousReset = state.resetAt;
+        const next = validateProgress(incoming, parsed.app);
+        localStorage.setItem(STORE_KEY + "-backup", JSON.stringify(state));
+        state = next;
+        state.resetAt = Math.max(Date.now(), (state.resetAt || 0) + 1, (previousReset || 0) + 1);
         save();
         applyTheme();
         toast("Прогресс загружен");
@@ -5936,8 +6041,19 @@
       default:
         renderNotFound();
     }
-    window.scrollTo(0, 0);
+    let offset = 0;
+    if (name === "lesson") {
+      try { offset = Number(localStorage.getItem("reading/" + a)) || 0; } catch {}
+    }
+    window.scrollTo(0, offset);
   }
+
+  window.addEventListener("scroll", () => {
+    const [name, id] = currentRoute();
+    if (name === "lesson") {
+      try { localStorage.setItem("reading/" + id, String(window.scrollY)); } catch {}
+    }
+  }, {passive: true});
 
   backBtn.addEventListener("click", () => {
     if (history.length > 1) history.back();

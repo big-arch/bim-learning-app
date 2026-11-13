@@ -39,3 +39,11 @@ window.BIM_CONTENT.paths = [
     lessons: ["en-01", "en-02", "en-03", "en-04", "en-05", "en-06", "bim-04", "mn-06", "mn-07"]
   }
 ];
+
+for (const [courseId, title, icon, desc] of [
+  ["autocad", "Проектировщик чертежей", "📐", "Подготовить и выпустить комплект чертежей AutoCAD."],
+  ["civil3d", "Инженер инфраструктуры", "🛣️", "Пройти путь от поверхности до оформления проекта Civil 3D."]
+]) {
+  const course = window.BIM_CONTENT.courses.find(c => c.id === courseId);
+  window.BIM_CONTENT.paths.push({id: courseId, title, icon, desc, lessons: course.lessons.map(l => l.id)});
+}

@@ -1,0 +1,1 @@
+window.BIM_EDITS = [];

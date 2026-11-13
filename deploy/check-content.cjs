@@ -24,6 +24,8 @@ const files = [
   "data/course-revit-server.js",
   "data/course-english.js",
   "data/course-software.js",
+  "data/workshops.js",
+  "data/editor-changes.js",
   "data/glossary.js",
   "data/videos.js",
   "data/news.js",
@@ -39,6 +41,11 @@ const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
 
 const errors = [];
+const version = JSON.parse(fs.readFileSync(path.join(root, "version.json"), "utf8")).version;
+if (!html.includes('name="app-version" content="' + version + '"') ||
+    !sw.includes('"bim-academy-' + version.split("-").pop() + '"')) {
+  errors.push("Версии приложения, манифеста релиза и офлайн-кэша расходятся");
+}
 files.forEach((f) => {
   if (!fs.existsSync(path.join(root, f))) return errors.push("нет файла " + f);
   require(path.join(root, f));
@@ -64,6 +71,7 @@ const courseIds = new Set(C.courses.map((c) => c.id));
 const lessonIds = new Set();
 
 C.courses.forEach((course) => {
+  if (C.courses.filter(c => c.id === course.id).length !== 1) errors.push("повтор курса " + course.id);
   if (!course.title || !course.icon) errors.push("курс " + course.id + ": нет title или icon");
   course.lessons.forEach((lesson) => {
     const tag = lesson.id;
@@ -74,6 +82,7 @@ C.courses.forEach((course) => {
     if (lesson.questions.length < 6) errors.push(tag + ": вопросов меньше шести (" + lesson.questions.length + ")");
 
     (lesson.blocks || []).forEach((b) => {
+      if (b.type === "workshop" && (!fs.existsSync(path.join(root,"assets",course.id+".svg")) || b.course !== course.id)) errors.push(tag + ": нет иллюстрации мастерской");
       if (b.type === "figure" && !figures.has(b.figure)) {
         errors.push(tag + ": ссылка на несуществующую схему " + b.figure);
       }
@@ -88,6 +97,7 @@ C.courses.forEach((course) => {
 
     (lesson.questions || []).forEach((q, i) => {
       const qt = tag + " вопрос " + (i + 1);
+      if (q.key && lesson.questions.filter(item => item.key === q.key).length !== 1) errors.push(qt + ": повтор ключа");
       if (!q.q) errors.push(qt + ": нет текста");
       if (!q.explain) errors.push(qt + ": нет объяснения");
       if (!["single", "multi", "bool", "input"].includes(q.type)) {

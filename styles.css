@@ -1714,3 +1714,43 @@ html[data-theme="dark"] {
   .nh-banner { grid-template-columns: minmax(380px, 0.8fr) minmax(0, 1.2fr); }
   .nh-scene { min-height: 320px; }
 }
+
+.plan-card { margin-bottom: 1rem; }
+.plan-card h2 { margin: 0 0 .5rem; }
+.plan-card summary { cursor: pointer; padding: .6rem 0; }
+.plan-card form { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; }
+.plan-card form p { flex-basis: 100%; margin: 0; }
+.plan-card label { display: grid; gap: .25rem; }
+.plan-card select { font: inherit; max-width: 100%; padding: .45rem; }
+
+.lesson-code { padding: 1rem; overflow-x: auto; background: #172638; color: #f1f4fc; border-radius: .65rem; line-height: 1.6; }
+.question h2 { white-space: pre-line; }
+@media (prefers-reduced-motion: no-preference) {
+  .verdict { animation: answer-arrive 160ms ease-out both; }
+  @keyframes answer-arrive { from { opacity: .5; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  #heroStage *, .nh-banner svg * { animation: none !important; transition: none !important; }
+}
+
+.code-practice [hidden] { display: none; }
+
+
+.workshop-plate { margin: 0; border-radius: 14px; overflow: hidden; background: #183848; color: #ecf6ee; }
+.workshop-plate img { display: block; width: 100%; }
+.workshop-plate figcaption { padding: .65rem 1rem; font-size: .84rem; letter-spacing: .04em; }
+.workshop-solution summary { cursor: pointer; padding: .65rem 0; font-weight: 650; }
+@media (prefers-reduced-motion:no-preference) {
+  .workshop-solution[open] p { animation: reveal-work .24s ease-out both; }
+  .workshop-plate img { animation: develop-plate .65s ease-out both; }
+  @keyframes reveal-work { from { opacity:0; transform:translateY(-5px) } to { opacity:1;transform:none } }
+  @keyframes develop-plate { from { clip-path:inset(0 100% 0 0) } to { clip-path:inset(0) } }
+}
+
+.catalog-art { display:block; width:100%; height:clamp(105px,18vw,210px); object-fit:cover; object-position:center; border-radius:16px; }
+.course-plate { width:100%; display:block; height:clamp(90px, 15vw, 175px); object-fit:cover; margin-bottom:1rem; border-radius:12px; }
+
+@media (prefers-reduced-motion:no-preference) {
+  .catalog-art { animation: workshop-light 850ms ease-out both; }
+  @keyframes workshop-light { from { opacity:.6; transform:scale(1.025); } to { opacity:1; transform:none; } }
+}

@@ -1,9 +1,25 @@
-const CACHE_NAME = "bim-academy-v24";
+const CACHE_NAME = "bim-academy-v28";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./learning.js",
+  "./assets/autocad.svg",
+  "./assets/bim.svg",
+  "./assets/workshop-banner.jpg",
+  "./assets/civil3d.svg",
+  "./assets/english.svg",
+  "./assets/manager.svg",
+  "./assets/navisworks.svg",
+  "./assets/practice.svg",
+  "./assets/revit.svg",
+  "./assets/revitserver.svg",
+  "./assets/software.svg",
+
+  "./data/editor-changes.js",
+  "./icons/training-sheet.svg",
+  "./icons/training-schedule.svg",
   "./heroes.js",
   "./heroes-pixel.js",
   "./heroes.css",
@@ -25,6 +41,7 @@ const APP_SHELL = [
   "./data/course-revit-server.js",
   "./data/course-english.js",
   "./data/course-software.js",
+  "./data/workshops.js",
   "./data/glossary.js",
   "./data/videos.js",
   "./data/news.js",
@@ -42,7 +59,7 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) => cache.addAll(APP_SHELL.map((url) => new Request(url, { cache: "reload" }))))
-      .catch(() => null)
+
   );
   self.skipWaiting();
 });
@@ -51,7 +68,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("bim-academy-") && key !== CACHE_NAME).map((key) => caches.delete(key))))
   );
   self.clients.claim();
 });
@@ -87,6 +104,6 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || Response.error()))
+      .catch(() => caches.match(event.request, { ignoreSearch: APP_SHELL.includes("./" + url.pathname.split(self.registration.scope.replace(self.location.origin, ""))[1]) }).then((cached) => cached || Response.error()))
   );
 });
